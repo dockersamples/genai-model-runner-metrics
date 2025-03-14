@@ -1,0 +1,22 @@
+services:
+  backend:
+    env_file: 'backend.env'
+    build:
+      context: .
+      target: backend
+    ports:
+      - '8080:8080'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8080/health']
+      interval: 3s
+      timeout: 3s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - '3000:3000'
+    depends_on:
+      backend:
+        condition: service_healthy
