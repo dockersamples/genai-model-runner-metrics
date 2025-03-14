@@ -48,7 +48,24 @@ The application consists of three main components:
    docker compose -f compose.yaml -f ollama-ci.yaml up
    ```
 
+   This command combines both files to create a complete deployment with all three components:
+
+    - The frontend React app
+    - The backend Go server
+    - The Ollama LLM service
+
+There's also a third compose file called compose-ci.yaml which appears to be a simplified version possibly used for continuous integration scenarios.
+
 3. Access the frontend at [http://localhost:3000](http://localhost:3000)
+
+> Please Note: There are two compose files in the repository:
+> 1. compose.yaml: This is the main Docker Compose file that sets up the core services:
+>     - backend service: The Go API server
+>     - frontend service: The React web application
+
+> 2. ollama-ci.yaml: This is a separate compose file specifically for setting up the Ollama service which runs the LLM (Llama 3.2 1B model).
+
+> These files are designed to be used together with Docker Compose's ability to merge multiple compose files. 
 
 ## Development Setup
 
