@@ -104,7 +104,7 @@ The application is configured for easy deployment using Docker Compose. See the 
 
 ## License
 
-[Add appropriate license information here]
+MIT
 
 ## Contributing
 
