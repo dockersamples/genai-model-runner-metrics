@@ -47,7 +47,7 @@ The application consists of three main components:
 
 2. Start the application using Docker Compose:
    ```bash
-   docker compose -f compose.yaml -f ollama-ci.yaml up
+   docker compose up -d -build
    ```
 
 3. Access the frontend at [http://localhost:3000](http://localhost:3000)
