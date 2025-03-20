@@ -1,0 +1,48 @@
+name: GenAI App Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: |
+          cd tests
+          go mod download
+          go run github.com/playwright-community/playwright-go/cmd/playwright install --with-deps
+          
+      - name: Run short tests
+        run: |
+          cd tests
+          go test -v ./integration -short
+          
+      - name: Run API tests
+        if: success() || failure()  # Run even if previous step failed
+        run: |
+          cd tests
+          go test -v ./integration -run TestGenAIAppIntegration
+        
+      - name: Run quality tests
+        if: success() || failure()  # Run even if previous step failed
+        run: |
+          cd tests
+          go test -v ./integration -run TestGenAIQuality
+          
+      - name: Clean up
+        if: always()  # Always run cleanup
+        run: |
+          docker network prune -f --filter "name=genai-*"
+          docker container prune -f --filter "name=test-*"

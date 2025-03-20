@@ -52,6 +52,28 @@ go test -v ./tests/integration -run TestGenAIAppIntegration
 go test -v ./tests/integration -short
 ```
 
+Alternatively, you can use the provided Makefile:
+
+```bash
+# Setup dependencies
+make -C tests setup
+
+# Run all tests
+make -C tests test
+
+# Run specific test categories
+make -C tests test-api
+make -C tests test-frontend
+make -C tests test-performance
+make -C tests test-quality
+
+# Run tests in short mode
+make -C tests test-short
+
+# Clean up test artifacts
+make -C tests clean
+```
+
 ## Test Environment
 
 The tests create isolated Docker containers for:
@@ -62,18 +84,14 @@ The tests create isolated Docker containers for:
 
 All containers are connected via a dedicated Docker network to ensure proper communication.
 
-## Customizing Tests
+## Test Reports
+
+Test results are displayed in the console. Screenshots for UI tests are saved to the system's temporary directory for visual inspection when failures occur.
+
+## Extending the Tests
 
 To add new test cases or modify existing ones:
 
 - For API tests, add new test functions to `api_test.go`
 - For UI tests, add new test steps to the Playwright tests in `frontend_test.go`
 - For quality evaluation, add new test cases to the `testCases` array in `quality_test.go`
-
-## Best Practices
-
-1. Keep tests isolated - each test should run independently
-2. Use descriptive test names that indicate what's being tested
-3. Include both positive and negative test cases
-4. For UI tests, add screenshots to help debug failures
-5. For LLM quality tests, focus on pattern matching rather than exact text comparison
