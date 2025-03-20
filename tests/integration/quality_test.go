@@ -15,7 +15,7 @@ func TestChatQuality(t *testing.T) {
 	testCases := []struct {
 		name     string
 		messages []Message
-		validate func(t *testing.T, resp map[string]interface{})
+		validate func(t *testing.T, resp string)
 	}{
 		{
 			name: "Simple Question",
@@ -25,12 +25,12 @@ func TestChatQuality(t *testing.T) {
 					Content: "What is 2 + 2?",
 				},
 			},
-			validate: func(t *testing.T, resp map[string]interface{}) {
-				// Add validation logic for the response
-				if resp == nil {
-					t.Error("Response should not be nil")
+			validate: func(t *testing.T, resp string) {
+				// Check that we got a non-empty response
+				if resp == "" {
+					t.Error("Response should not be empty")
 				}
-				// Add more specific checks as needed
+				// We could add more specific checks here
 			},
 		},
 		// Add more test cases as needed
@@ -44,21 +44,11 @@ func TestChatQuality(t *testing.T) {
 				Messages: tc.messages,
 			}
 
-			// Perform chat request
-			resp := performChatRequest(t, baseURL, chatReq)
+			// Perform chat request and get the response
+			resp := sendChatRequest(t, baseURL, chatReq)
 
 			// Validate response
 			tc.validate(t, resp)
 		})
 	}
-}
-
-// Helper function to perform chat request
-func performChatRequest(t *testing.T, baseURL string, req ChatRequest) map[string]interface{} {
-	// Use the existing testChatEndpoint to send the request
-	// You might want to modify this to return the response for validation
-	testChatEndpoint(t, baseURL)
-
-	// For now, returning nil. You'll want to implement actual response parsing
-	return nil
 }
