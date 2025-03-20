@@ -104,8 +104,29 @@ The application is configured for easy deployment using Docker Compose. See the 
 
 ## License
 
+
 MIT
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## How it works?
+
+The application uses both Docker Hub and Ollama, but in different ways:
+
+- The Docker Image Source: The application does indeed pull a Docker image from Docker Hub. Specifically, it pulls the ilopezluna/llama3.2:0.5.4-1b image as you can see in the ollama-ci.yaml file. This is a containerized version of Ollama with Llama 3.2 (1B parameter model) pre-installed.
+- Ollama's Role: Ollama is not being pulled separately - it's already packaged inside the Docker image. Ollama is the actual software that runs and serves the Llama 3.2 model. It provides the API that the backend communicates with to generate responses.
+
+So, to clarify:
+
+- The application is NOT pulling Ollama separately
+- It is pulling a Docker image that contains Ollama + Llama 3.2 from Docker Hub
+- That image (created by a docker hub user) packages Ollama with the specific model configuration
+  This repo use a Docker Official Image here suggests that the developer plans to eventually switch to an official image rather than using this custom one.
+- The backend configuration in `backend.env` also shows it's connecting to an endpoint that matches Ollama's API format, confirming that the backend is communicating with Ollama running inside that Docker container.
+- In summary, this is using Docker Hub to distribute a pre-packaged Ollama + Llama 3.2 image, rather than pulling them separately.
+
+  
+
+  
