@@ -3,7 +3,6 @@ package integration
 import (
 	"testing"
 	"time"
-	"fmt"
 )
 
 // TestExtendedPerformance runs performance tests for an extended period
