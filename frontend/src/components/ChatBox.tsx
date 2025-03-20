@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Message } from '../types';
 import { MessageList } from './MessageList';
-import { MessageInput } from '../MessageInput';
+import { MessageInput } from './MessageInput';
 
 export default function ChatBox() {
   const [input, setInput] = useState('');
