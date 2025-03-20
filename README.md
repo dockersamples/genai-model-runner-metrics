@@ -35,7 +35,7 @@ The application consists of three main components:
 
 - Docker and Docker Compose
 - Git
-- Node.js (for running npm commands)
+- Go 1.19 or higher
 
 ## Quick Start
 
@@ -45,12 +45,7 @@ The application consists of three main components:
    cd genai-app-demo
    ```
 
-2. Start the application using npm:
-   ```bash
-   npm start
-   ```
-
-   Or using Docker Compose directly:
+2. Start the application using Docker Compose:
    ```bash
    docker compose -f compose.yaml -f ollama-ci.yaml up
    ```
@@ -82,23 +77,43 @@ Make sure to set the environment variables in `backend.env` or provide them dire
 
 ## Testing
 
-The application includes comprehensive integration tests using Testcontainers.
+The application includes comprehensive integration tests using Testcontainers in Go.
 
 ### Running Tests
 
 ```bash
 # Run all tests
-npm test
+cd tests
+go test -v ./integration
 
 # Run specific test categories
-npm run test:api          # Test API endpoints
-npm run test:frontend     # Test UI with Playwright
-npm run test:quality      # Test LLM response quality
-npm run test:performance  # Test performance metrics
-npm run test:integration  # Run all integration tests
+go test -v ./integration -run TestGenAIAppIntegration    # API tests
+go test -v ./integration -run TestFrontendIntegration    # UI tests
+go test -v ./integration -run TestGenAIQuality           # Quality tests
+go test -v ./integration -run TestGenAIPerformance       # Performance tests
 
 # Run tests in short mode (faster)
-npm run test:short
+go test -v ./integration -short
+
+# Run tests with Docker Compose instead of Testcontainers
+export USE_DOCKER_COMPOSE=true
+go test -v ./integration -run TestWithDockerCompose
+```
+
+Alternatively, you can use the provided Makefile:
+
+```bash
+# Run all tests
+make -C tests test
+
+# Run specific test categories
+make -C tests test-api
+make -C tests test-frontend
+make -C tests test-quality
+make -C tests test-performance
+
+# Clean up test resources
+make -C tests clean
 ```
 
 ## Configuration
