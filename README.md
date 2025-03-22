@@ -1,4 +1,4 @@
-# GenAI Application Demo
+# GenAI Application Demo using Model Runner
 
 A modern chat application demonstrating integration of frontend technologies with local Large Language Models (LLMs).
 
@@ -6,7 +6,22 @@ A modern chat application demonstrating integration of frontend technologies wit
 
 This project is a full-stack GenAI chat application that showcases how to build a Generative AI interface with a React frontend and Go backend, connected to Llama 3.2 running on Ollama.
 
-## Architecture
+## Two Methods
+
+There are two ways you can use Model Runner:
+
+- Using Internal DNS
+- Using TCP
+
+
+### Using Internal DNS
+
+This menthods points to the same Model Runner (llama.cpp engine) but through different connection method. 
+It uses the internal Docker DNS resolution (model-runner.docker.internal)
+
+
+
+#### Architecture
 
 The application consists of three main components:
 
@@ -22,7 +37,7 @@ The application consists of three main components:
       :3000              :8080              :11434
 ```
 
-## Features
+##### Features
 
 - Real-time chat interface with message history
 - Streaming AI responses (tokens appear as they're generated)
@@ -31,13 +46,13 @@ The application consists of three main components:
 - Cross-origin resource sharing (CORS) enabled
 - Comprehensive integration tests using Testcontainers
 
-## Prerequisites
+##### Prerequisites
 
 - Docker and Docker Compose
 - Git
 - Go 1.19 or higher
 
-## Quick Start
+##### Quick Start
 
 1. Clone this repository:
    ```bash
@@ -52,7 +67,7 @@ The application consists of three main components:
 
 3. Access the frontend at [http://localhost:3000](http://localhost:3000)
 
-## Development Setup
+##### Development Setup
 
 ### Frontend
 
@@ -74,6 +89,15 @@ go run main.go
 ```
 
 Make sure to set the environment variables in `backend.env` or provide them directly.
+
+
+## Using TCP 
+
+This menthods points to the same Model Runner (`llama.cpp engine`) but through different connection method. 
+It uses the host-side TCP support via `host.docker.internal:12434`
+
+
+
 
 ## Testing
 
