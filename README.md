@@ -16,7 +16,7 @@ There are two ways you can use Model Runner:
 
 ### Using Internal DNS
 
-This menthods points to the same Model Runner (llama.cpp engine) but through different connection method. 
+This methods points to the same Model Runner (llama.cpp engine) but through different connection method. 
 It uses the internal Docker DNS resolution (model-runner.docker.internal)
 
 
