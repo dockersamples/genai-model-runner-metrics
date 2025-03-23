@@ -51,6 +51,11 @@ The application consists of three main components:
 - Docker and Docker Compose
 - Git
 - Go 1.19 or higher
+- Download the model before proceeding further
+
+```
+docker model pull ignaciolopezluna020/llama3.2:1B
+```
 
 ##### Quick Start
 
@@ -58,6 +63,7 @@ The application consists of three main components:
    ```bash
    git clone https://github.com/ajeetraina/genai-app-demo.git
    cd genai-app-demo
+
    ```
 
 2. Start the application using Docker Compose:
