@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/openai/openai-go/option"
-
 	"github.com/openai/openai-go"
 )
 
@@ -24,7 +23,7 @@ type ChatRequest struct {
 func main() {
 	baseURL := os.Getenv("BASE_URL")
 	model := os.Getenv("MODEL")
-	apiKey := os.Getenv("apiKey")
+	apiKey := os.Getenv("API_KEY") // Note: Fixed capitalization from "apiKey" to "API_KEY"
 
 	client := openai.NewClient(
 		option.WithBaseURL(baseURL),
@@ -83,13 +82,16 @@ func main() {
 			messages = append(messages, message)
 		}
 
-		param := openai.ChatCompletionNewParams{
-			Messages: openai.F(messages),
-			Model:    openai.F(model),
+		// Adds the user message to the conversation if provided
+		if req.Message != "" {
+			messages = append(messages, openai.UserMessage(req.Message))
 		}
 
-		// Adds the user message to the conversation
-		param.Messages.Value = append(param.Messages.Value, openai.UserMessage(req.Message))
+		param := openai.ChatCompletionNewParams{
+			Messages: messages,
+			Model:    model,
+		}
+
 		stream := client.Chat.Completions.NewStreaming(ctx, param)
 
 		for stream.Next() {
