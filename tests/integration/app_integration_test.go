@@ -131,7 +131,7 @@ func startBackend(modelRunnerURL string) (*os.Process, string, error) {
 	// Set environment variables for the backend
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("BASE_URL=%s/engines/llama.cpp/v1", modelRunnerURL))
-	env = append(env, "MODEL=ignaciolopezluna020/llama3.2:1b")
+	env = append(env, "MODEL=ignaciolopezluna020/llama3.2:1B")
 	env = append(env, "API_KEY=ollama") // Default API key
 
 	// Start the backend on a random port
