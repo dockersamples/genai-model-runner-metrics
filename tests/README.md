@@ -66,3 +66,21 @@ Here's what the test was doing:
 The main benefit of this testing approach is that it tests the actual integration with the AI model running in Docker Model Runner, rather than using mocks or simulations. 
 This ensures that your application will work correctly with the real model in production.
 This type of testing is particularly valuable for AI applications because it verifies both the technical integration with the model service and the quality of the responses you're getting from the model.
+
+
+## Full App Test
+
+
+Go to tests/ directory:
+
+
+
+```
+go get github.com/openai/openai-go
+go get github.com/openai/openai-go/option
+go get github.com/testcontainers/testcontainers-go@v0.27.0
+```
+
+
+
+
