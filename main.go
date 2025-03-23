@@ -1,13 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
-
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go"
 )
 
 type Message struct {
@@ -20,16 +19,30 @@ type ChatRequest struct {
 	Message  string    `json:"message"`
 }
 
+// ModelRequest represents a request to the model
+type ModelRequest struct {
+	Model       string    `json:"model"`
+	Prompt      string    `json:"prompt,omitempty"`
+	Messages    []Message `json:"messages,omitempty"`
+	Temperature float64   `json:"temperature"`
+	MaxTokens   int       `json:"max_tokens"`
+	Stream      bool      `json:"stream"`
+}
+
+// ModelResponse represents a response from the model
+type ModelResponse struct {
+	Choices []struct {
+		Text         string `json:"text,omitempty"`
+		Delta        struct {
+			Content string `json:"content"`
+		} `json:"delta,omitempty"`
+	} `json:"choices"`
+}
+
 func main() {
 	baseURL := os.Getenv("BASE_URL")
 	model := os.Getenv("MODEL")
-	apiKey := os.Getenv("API_KEY") // Note: Fixed capitalization from "apiKey" to "API_KEY"
-
-	client := openai.NewClient(
-		option.WithBaseURL(baseURL),
-		option.WithAPIKey(apiKey),
-	)
-
+	
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -67,51 +80,73 @@ func main() {
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
-		ctx := r.Context()
+		// If we have a message, add it to the messages
+		if req.Message != "" {
+			req.Messages = append(req.Messages, Message{
+				Role:    "user",
+				Content: req.Message,
+			})
+		}
 
-		var messages []openai.ChatCompletionMessageParamUnion
-		for _, msg := range req.Messages {
-			var message openai.ChatCompletionMessageParamUnion
-			switch msg.Role {
-			case "user":
-				message = openai.UserMessage(msg.Content)
-			case "assistant":
-				message = openai.AssistantMessage(msg.Content)
+		// Create the model request
+		modelReq := ModelRequest{
+			Model:       model,
+			Messages:    req.Messages,
+			Temperature: 0.2,
+			MaxTokens:   500,
+			Stream:      true,
+		}
+
+		// Convert request to JSON
+		jsonData, err := json.Marshal(modelReq)
+		if err != nil {
+			http.Error(w, "Error creating request", http.StatusInternalServerError)
+			return
+		}
+
+		// Send request to model
+		modelURL := fmt.Sprintf("%s/completions", baseURL)
+		client := &http.Client{}
+		modelResp, err := client.Post(
+			modelURL,
+			"application/json",
+			bytes.NewBuffer(jsonData),
+		)
+		if err != nil {
+			http.Error(w, "Error communicating with model", http.StatusInternalServerError)
+			return
+		}
+		defer modelResp.Body.Close()
+
+		// Process the streaming response
+		decoder := json.NewDecoder(modelResp.Body)
+		for {
+			var response ModelResponse
+			if err := decoder.Decode(&response); err != nil {
+				if err == io.EOF {
+					break
+				}
+				fmt.Printf("Error decoding response: %v\n", err)
+				break
 			}
 
-			messages = append(messages, message)
-		}
-
-		// Adds the user message to the conversation if provided
-		if req.Message != "" {
-			messages = append(messages, openai.UserMessage(req.Message))
-		}
-
-		param := openai.ChatCompletionNewParams{
-			Messages: messages,
-			Model:    model,
-		}
-
-		stream := client.Chat.Completions.NewStreaming(ctx, param)
-
-		for stream.Next() {
-			chunk := stream.Current()
-
-			// Stream each chunk as it arrives
-			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-				_, err := fmt.Fprintf(w, "%s", chunk.Choices[0].Delta.Content)
+			if len(response.Choices) > 0 && response.Choices[0].Delta.Content != "" {
+				content := response.Choices[0].Delta.Content
+				_, err := fmt.Fprintf(w, "%s", content)
 				if err != nil {
-					fmt.Printf("Error writing to stream: %v\n", err)
-					return
+					fmt.Printf("Error writing to response: %v\n", err)
+					break
+				}
+				w.(http.Flusher).Flush()
+			} else if len(response.Choices) > 0 && response.Choices[0].Text != "" {
+				// For non-streaming responses
+				_, err := fmt.Fprintf(w, "%s", response.Choices[0].Text)
+				if err != nil {
+					fmt.Printf("Error writing to response: %v\n", err)
+					break
 				}
 				w.(http.Flusher).Flush()
 			}
-		}
-
-		if err := stream.Err(); err != nil {
-			fmt.Printf("Error in stream: %v\n", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
 		}
 	})
 
