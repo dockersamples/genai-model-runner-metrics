@@ -26,7 +26,6 @@ type FullAppTestEnvironment struct {
 
 // TestFullAppWithModelRunner tests the complete integration from backend to Model Runner
 func TestFullAppWithModelRunner(t *testing.T) {
-	// Skip if short mode is enabled
 	if testing.Short() {
 		t.Skip("skipping full application integration test in short mode")
 	}
@@ -133,7 +132,8 @@ func startBackend(modelRunnerURL string) (*os.Process, string, error) {
 	env = append(env, "API_KEY=ollama") // Default API key
 
 	// Start the backend on a random port
-	cmd := exec.Command("go", "run", "../main.go")
+	// Updated path to point to the main.go in the project root
+	cmd := exec.Command("go", "run", "../../main.go")
 	cmd.Env = env
 	cmd.Stdout = os.Stdout // Redirect output for debugging
 	cmd.Stderr = os.Stderr
