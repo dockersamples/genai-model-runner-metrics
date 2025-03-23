@@ -2,7 +2,28 @@
 
 This directory contains integration tests for the GenAI application, demonstrating how to test applications that use Docker Model Runner with Testcontainers.
 
-## Getting Started
+This repo involves 2 tests:
+
+- TestModelRunnerIntegration
+- TestFullAppWithModelRunner
+
+
+### TestModelRunnerIntegration - This test focuses on direct interaction with Docker Model Runner:
+
+- Creates a Socat container to connect to model-runner.docker.internal
+- Tests basic text generation with a prompt about Docker
+- Tests structured response generation about Docker benefits
+- Verifies proper responses from the model
+
+
+### TestFullAppWithModelRunner - This test verifies the complete application stack:
+
+- Sets up both the Socat container and the backend application
+- Configures the backend to communicate with Model Runner
+- Sends a chat request through the backend to Model Runner
+- Verifies the entire flow works end-to-end
+
+## Getting Started with TestModelRunnerIntegration Test
 
 
 ```
@@ -68,7 +89,7 @@ This ensures that your application will work correctly with the real model in pr
 This type of testing is particularly valuable for AI applications because it verifies both the technical integration with the model service and the quality of the responses you're getting from the model.
 
 
-## Full App Test
+## Getting Started with TestFullAppWithModelRunner
 
 
 Go to tests/ directory:
