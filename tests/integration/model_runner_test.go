@@ -24,10 +24,10 @@ type SocatContainer struct {
 
 // ModelRunnerTestEnvironment represents the test environment for Docker Model Runner
 type ModelRunnerTestEnvironment struct {
-	BaseURL      string
-	ModelName    string
+	BaseURL        string
+	ModelName      string
 	SocatContainer testcontainers.Container
-	ctx          context.Context
+	ctx            context.Context
 }
 
 // TestModelRunnerIntegration tests the integration with Docker Model Runner
