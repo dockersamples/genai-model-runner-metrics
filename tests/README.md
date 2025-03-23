@@ -81,6 +81,20 @@ go get github.com/openai/openai-go/option
 go get github.com/testcontainers/testcontainers-go@v0.27.0
 ```
 
+```
+cd ../
+go mod tidy
+```
+
+
+Now, run the test
+
+```
+cd tests/
+go test -v -run TestFullAppWithModelRunner ./integration
+```
+
+
 
 
 
