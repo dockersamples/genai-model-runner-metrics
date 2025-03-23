@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // FullAppTestEnvironment represents a complete test environment with backend and Model Runner
@@ -57,10 +56,9 @@ func TestFullAppWithModelRunner(t *testing.T) {
 			Messages: []Message{
 				{
 					Role:    "user",
-					Content: "Hello, what can you tell me about Docker?",
+					Content: "Tell me about Docker in one paragraph.",
 				},
 			},
-			Message: "Tell me about Docker in one paragraph.",
 		}
 
 		// Send the request to the backend

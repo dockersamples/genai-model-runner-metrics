@@ -50,7 +50,7 @@ func TestModelRunnerIntegration(t *testing.T) {
 	defer env.Cleanup(t)
 
 	// Verify the model is available
-	modelName := "ignaciolopezluna020/llama3.2:1b"
+	modelName := "ignaciolopezluna020/llama3.2:1B"
 	if err := env.EnsureModelAvailable(modelName); err != nil {
 		t.Fatalf("Failed to ensure model is available: %v", err)
 	}
@@ -225,7 +225,7 @@ func (env *ModelRunnerTestEnvironment) PullModel(modelName string) error {
 }
 
 // ListModels returns the list of available models in Docker Model Runner
-func (env *ModelRunnerTestEnvironment) ListModels() ([]struct{ ID string }, error) {
+func (env *ModelRunnerTestEnvironment) ListModels() ([]struct{ ID string `json:"id"` }, error) {
 	resp, err := http.Get(fmt.Sprintf("%s/engines/llama.cpp/v1/models", env.BaseURL))
 	if err != nil {
 		return nil, err
