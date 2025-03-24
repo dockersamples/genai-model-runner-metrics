@@ -4,7 +4,7 @@ A modern chat application demonstrating integration of frontend technologies wit
 
 ## Overview
 
-This project is a full-stack GenAI chat application that showcases how to build a Generative AI interface with a React frontend and Go backend, connected to Llama 3.2 running on Ollama.
+This project is a full-stack GenAI chat application that showcases how to build a Generative AI interface with a React frontend and Go backend, connected to the Docker Model Runner.
 
 ## Two Methods
 
