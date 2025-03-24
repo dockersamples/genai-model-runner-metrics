@@ -2,8 +2,6 @@
 
 A modern, full-stack chat application demonstrating how to integrate React frontend with a Go backend and run local Large Language Models (LLMs) using Docker's Model Runner.
 
-![GenAI Application Demo](https://user-images.githubusercontent.com/313480/259385120-8e06ea97-cd28-44c0-92f3-f7c92b1f2d9a.png)
-
 ## Overview
 
 This project showcases a complete Generative AI interface that includes:
@@ -30,7 +28,7 @@ The application consists of three main components:
 │   Frontend  │ >>> │   Backend   │ >>> │ Model Runner│
 │  (React/TS) │     │    (Go)     │     │ (Llama 3.2) │
 └─────────────┘     └─────────────┘     └─────────────┘
-      :3000              :8080               
+      :3000              :8080               :12434
 ```
 
 ## Connection Methods
