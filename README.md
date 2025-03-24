@@ -31,10 +31,10 @@ The application consists of three main components:
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Frontend  │ >>> │   Backend   │ >>> │    Ollama   │
-│  (React/TS) │     │    (Go)     │     │  (Llama 3.2)│
+│   Frontend  │ >>> │   Backend   │ >>> │ Model Runner│
+│  (React/TS) │     │    (Go)     │     │ 
 └─────────────┘     └─────────────┘     └─────────────┘
-      :3000              :8080              :11434
+      :3000              :8080              
 ```
 
 ##### Features
