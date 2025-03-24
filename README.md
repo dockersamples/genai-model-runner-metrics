@@ -27,7 +27,7 @@ The application consists of three main components:
 
 1. **Frontend**: React TypeScript application providing a responsive chat interface
 2. **Backend**: Go server that handles API requests and connects to the LLM
-3. **Model Runner**: Ollama service running the Llama 3.2 (1B parameter) model
+3. **Model Runner**: Llama 3.2 (1B parameter) model
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -109,7 +109,7 @@ The backend connects to the LLM service using environment variables defined in `
 
 - `BASE_URL`: URL for the model runner
 - `MODEL`: Model identifier to use
-- `API_KEY`: API key for authentication (defaults to "ollama")
+- `API_KEY`: API key for authentication 
 
 ## Deployment
 
