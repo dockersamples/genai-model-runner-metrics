@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   model-runner:
-    image: ilopezluna/llama3.2:0.5.4-1b
+    image: ai/llama3.2:1B-Q8_0
     ports:
       - "11434:11434"
     healthcheck:
