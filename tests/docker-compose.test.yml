@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  ollama:
+  model-runner:
     image: ilopezluna/llama3.2:0.5.4-1b
     ports:
       - "11434:11434"
@@ -11,7 +11,7 @@ services:
           'CMD-SHELL',
           'bash',
           '-c',
-          "{ printf >&3 'GET / HTTP/1.0\\r\\n\\r\\n'; cat <&3; } 3<>/dev/tcp/localhost/11434 | grep 'Ollama is' || exit 1",
+          "{ printf >&3 'GET / HTTP/1.0\\r\\n\\r\\n'; cat <&3; } 3<>/dev/tcp/localhost/11434 | grep 'Docker Model Runner is' || exit 1",
         ]
       interval: 10s
       timeout: 5s
@@ -25,13 +25,13 @@ services:
       context: ..
       target: backend
     environment:
-      - BASE_URL=http://ollama:11434/engines/llama.cpp/v1/
-      - MODEL=ignaciolopezluna020/llama3.2:1b
-      - API_KEY=ollama
+      - BASE_URL=http://model-runner.docker.internal/engines/llama.cpp/v1/
+      - MODEL=ai/llama3.2:1B-Q8_0
+      - API_KEY=dockermodelrunner
     ports:
       - "8080:8080"
     depends_on:
-      ollama:
+      model-runner:
         condition: service_healthy
     networks:
       - test-network
