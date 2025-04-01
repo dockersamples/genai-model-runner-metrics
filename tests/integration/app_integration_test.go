@@ -127,9 +127,9 @@ func setupFullAppEnvironment(t *testing.T) (*FullAppTestEnvironment, error) {
 func startBackend(modelRunnerURL string) (*os.Process, string, error) {
 	// Set environment variables for the backend
 	env := os.Environ()
-	env = append(env, fmt.Sprintf("BASE_URL=%s/engines/llama.cpp/v1", modelRunnerURL))
-	env = append(env, "MODEL=ignaciolopezluna020/llama3.2:1B")
-	env = append(env, "API_KEY=ollama") // Default API key
+	env = append(env, fmt.Sprintf("BASE_URL=http://model-runner.docker.internal/engines/llama.cpp/v1"))
+	env = append(env, "MODEL=ai/llama3.2:1B-Q8_0")
+	env = append(env, "API_KEY=dockermodelrunner") // Default API key
 
 	// Start the backend on a random port
 	// Updated path to point to the main.go in the project root
