@@ -31,7 +31,7 @@ function App() {
         <ChatBox />
       </div>
       <footer className="text-center p-4 text-sm text-gray-500 dark:text-gray-400">
-        <p>Powered by <span className="font-semibold">Ollama</span> running <span className="font-semibold">Llama 3.2 (1B)</span> in a Docker container</p>
+        <p>Powered by <span className="font-semibold">Docker Model Runner</span> running <span className="font-semibold">Llama 3.2 (1B)</span> in a Docker container</p>
       </footer>
     </div>
   );
