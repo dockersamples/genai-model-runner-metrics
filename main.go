@@ -83,10 +83,15 @@ func main() {
 	mux.HandleFunc("/health", health.HandleHealth())
 	mux.HandleFunc("/readiness", health.HandleReadiness())
 
-	// Add metrics endpoint
+	// Add metrics endpoints
 	mux.Handle("/metrics", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.DefaultServeMux.ServeHTTP(w, r)
 	}))
+	
+	// Add frontend metrics endpoints
+	mux.HandleFunc("/metrics/summary", metrics.HandleMetricsSummary())
+	mux.HandleFunc("/metrics/log", metrics.HandleLogMetrics())
+	mux.HandleFunc("/metrics/error", metrics.HandleLogError())
 
 	// Add chat endpoint with rate limiting
 	chatHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
