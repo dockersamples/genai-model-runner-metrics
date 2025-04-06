@@ -8,6 +8,7 @@ This project showcases a complete Generative AI interface that includes:
 - React/TypeScript frontend with a responsive chat UI
 - Go backend server for API handling
 - Integration with Docker's Model Runner to run Llama 3.2 locally
+- Comprehensive observability with metrics, logging, and tracing
 
 ## Features
 
@@ -18,10 +19,14 @@ This project showcases a complete Generative AI interface that includes:
 - 🏠 Run AI models locally without cloud API dependencies
 - 🔒 Cross-origin resource sharing (CORS) enabled
 - 🧪 Integration testing using Testcontainers
+- 📊 Metrics and performance monitoring
+- 📝 Structured logging with zerolog
+- 🔍 Distributed tracing with OpenTelemetry
+- 📈 Grafana dashboards for visualization
 
 ## Architecture
 
-The application consists of three main components:
+The application consists of these main components:
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -29,6 +34,12 @@ The application consists of three main components:
 │  (React/TS) │     │    (Go)     │     │ (Llama 3.2) │
 └─────────────┘     └─────────────┘     └─────────────┘
       :3000              :8080               :12434
+                          │  │
+┌─────────────┐     ┌─────┘  └─────┐     ┌─────────────┐
+│   Grafana   │ <<< │ Prometheus  │     │   Jaeger    │
+│ Dashboards  │     │  Metrics    │     │   Tracing   │
+└─────────────┘     └─────────────┘     └─────────────┘
+      :3001              :9091              :16686
 ```
 
 ## Connection Methods
@@ -75,6 +86,11 @@ docker model pull ignaciolopezluna020/llama3.2:1B
 
 3. Access the frontend at [http://localhost:3000](http://localhost:3000)
 
+4. Access observability dashboards:
+   - Grafana: [http://localhost:3001](http://localhost:3001) (admin/admin)
+   - Jaeger UI: [http://localhost:16686](http://localhost:16686)
+   - Prometheus: [http://localhost:9091](http://localhost:9091)
+
 ## Development Setup
 
 ### Frontend
@@ -102,6 +118,10 @@ Make sure to set the required environment variables from `backend.env`:
 - `BASE_URL`: URL for the model runner
 - `MODEL`: Model identifier to use
 - `API_KEY`: API key for authentication (defaults to "ollama")
+- `LOG_LEVEL`: Logging level (debug, info, warn, error)
+- `LOG_PRETTY`: Whether to output pretty-printed logs
+- `TRACING_ENABLED`: Enable OpenTelemetry tracing
+- `OTLP_ENDPOINT`: OpenTelemetry collector endpoint
 
 ## How It Works
 
@@ -110,6 +130,7 @@ Make sure to set the required environment variables from `backend.env`:
 3. The LLM processes the input and generates a response
 4. The backend streams the tokens back to the frontend as they're generated
 5. The frontend displays the incoming tokens in real-time
+6. Observability components collect metrics, logs, and traces throughout the process
 
 ## Project Structure
 
@@ -122,10 +143,43 @@ Make sure to set the required environment variables from `backend.env`:
 │   │   ├── components/    # React components
 │   │   ├── App.tsx        # Main application component
 │   │   └── ...
-│   ├── package.json       # NPM dependencies
-│   └── ...
+├── pkg/                   # Go packages
+│   ├── logger/            # Structured logging
+│   ├── metrics/           # Prometheus metrics
+│   ├── middleware/        # HTTP middleware
+│   ├── tracing/           # OpenTelemetry tracing
+│   └── health/            # Health check endpoints
+├── prometheus/            # Prometheus configuration
+├── grafana/               # Grafana dashboards and configuration
+├── observability/         # Observability documentation
 └── ...
 ```
+
+## Observability Features
+
+The project includes comprehensive observability features:
+
+### Metrics
+
+- Model performance (latency, time to first token)
+- Token usage (input and output counts)
+- Request rates and error rates
+- Active request monitoring
+
+### Logging
+
+- Structured JSON logs with zerolog
+- Log levels (debug, info, warn, error, fatal)
+- Request logging middleware
+- Error tracking
+
+### Tracing
+
+- Request flow tracing with OpenTelemetry
+- Integration with Jaeger for visualization
+- Span context propagation
+
+For more information, see [Observability Documentation](./observability/README.md).
 
 ## Customization
 
@@ -133,6 +187,7 @@ You can customize the application by:
 1. Changing the model in `backend.env` to use a different LLM
 2. Modifying the frontend components for a different UI experience
 3. Extending the backend API with additional functionality
+4. Customizing the Grafana dashboards for different metrics
 
 ## Testing
 
@@ -148,6 +203,7 @@ go test -v
 - **Model not loading**: Ensure you've pulled the model with `docker model pull`
 - **Connection errors**: Verify Docker network settings and that Model Runner is running
 - **Streaming issues**: Check CORS settings in the backend code
+- **Metrics not showing**: Verify that Prometheus can reach the backend metrics endpoint
 
 ## License
 
