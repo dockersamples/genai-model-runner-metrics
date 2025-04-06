@@ -24,6 +24,9 @@ This project showcases a complete Generative AI interface that includes:
 - 🔍 Distributed tracing with OpenTelemetry
 - 📈 Grafana dashboards for visualization
 
+<img width="1126" alt="image" src="https://github.com/user-attachments/assets/bccb9f93-1f6e-4397-a3ce-8a15370490d9" />
+
+
 ## Architecture
 
 The application consists of these main components:
