@@ -19,6 +19,6 @@ scrape_configs:
   - job_name: "genai-app"
     metrics_path: /metrics
     static_configs:
-      - targets: ["backend:9090"]
+      - targets: ["host.docker.internal:9090"]
         labels:
           instance: "genai-app-backend"

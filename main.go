@@ -4,20 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/ajeetraina/genai-app-demo/pkg/health"
-	"github.com/ajeetraina/genai-app-demo/pkg/logger"
-	"github.com/ajeetraina/genai-app-demo/pkg/metrics"
-	"github.com/ajeetraina/genai-app-demo/pkg/middleware"
-	"github.com/ajeetraina/genai-app-demo/pkg/tracing"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
-	"github.com/rs/zerolog/log"
 )
 
 type Message struct {
@@ -30,29 +28,52 @@ type ChatRequest struct {
 	Message  string    `json:"message"`
 }
 
-type TokenCounter struct {
-	Input  int
-	Output int
-}
+// Define metrics
+var (
+	requestCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "genai_app_http_requests_total",
+			Help: "Total number of HTTP requests",
+		},
+		[]string{"method", "endpoint", "status"},
+	)
+	
+	requestDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "genai_app_http_request_duration_seconds",
+			Help:    "HTTP request duration in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"method", "endpoint"},
+	)
+	
+	chatTokensCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "genai_app_chat_tokens_total",
+			Help: "Total number of tokens processed in chat",
+		},
+		[]string{"direction", "model"},
+	)
+	
+	modelLatency = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "genai_app_model_latency_seconds",
+			Help:    "Model response time in seconds",
+			Buckets: []float64{0.1, 0.5, 1, 2, 5, 10, 20, 30, 60},
+		},
+		[]string{"model", "operation"},
+	)
+	
+	activeRequests = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "genai_app_active_requests",
+			Help: "Number of currently active requests",
+		},
+	)
+)
 
 func main() {
-	// Initialize structured logging
-	logger.Init(getEnvOrDefault("LOG_LEVEL", "info"), getEnvOrDefault("LOG_PRETTY", "true") == "true")
-	log.Info().Msg("Starting GenAI App with observability")
-
-	// Initialize tracing if enabled
-	if getEnvOrDefault("TRACING_ENABLED", "false") == "true" {
-		shutdownTracing, err := tracing.SetupTracing(
-			"genai-app",
-			getEnvOrDefault("OTLP_ENDPOINT", ""),
-		)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to initialize tracing")
-		} else {
-			defer shutdownTracing()
-			log.Info().Msg("Tracing initialized")
-		}
-	}
+	log.Println("Starting GenAI App with observability")
 
 	// Get configuration from environment
 	baseURL := os.Getenv("BASE_URL")
@@ -65,7 +86,7 @@ func main() {
 		option.WithAPIKey(apiKey),
 	)
 
-	// Create router with middleware
+	// Create router
 	mux := http.NewServeMux()
 
 	// Add CORS handler
@@ -79,22 +100,22 @@ func main() {
 		}
 	})
 
-	// Add health check endpoints
-	mux.HandleFunc("/health", health.HandleHealth())
-	mux.HandleFunc("/readiness", health.HandleReadiness())
+	// Add health check endpoint
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
 
-	// Add metrics endpoints
-	mux.Handle("/metrics", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.DefaultServeMux.ServeHTTP(w, r)
-	}))
-	
-	// Add frontend metrics endpoints
-	mux.HandleFunc("/metrics/summary", metrics.HandleMetricsSummary())
-	mux.HandleFunc("/metrics/log", metrics.HandleLogMetrics())
-	mux.HandleFunc("/metrics/error", metrics.HandleLogError())
+	// Add metrics endpoint
+	mux.Handle("/metrics", promhttp.Handler())
 
-	// Add chat endpoint with rate limiting
-	chatHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Add chat endpoint
+	mux.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		activeRequests.Inc()
+		defer activeRequests.Dec()
+		
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -111,15 +132,11 @@ func main() {
 
 		var req ChatRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			log.Error().Err(err).Msg("Invalid request body")
+			log.Printf("Invalid request body: %v", err)
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			metrics.ErrorCounter.WithLabelValues("invalid_request", "chat").Inc()
+			requestCounter.WithLabelValues(r.Method, r.URL.Path, fmt.Sprintf("%d", http.StatusBadRequest)).Inc()
 			return
 		}
-
-		// Start tracing span for the request
-		ctx, endSpan := tracing.StartSpan(r.Context(), "chat_completion")
-		defer endSpan()
 
 		// Set headers for SSE
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -127,94 +144,83 @@ func main() {
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
-		// Initialize token counter
-		tokenCounter := TokenCounter{}
+		ctx := r.Context()
 
-		// Create messages array from request
+		// Count input tokens (rough estimate)
+		inputTokens := 0
+		for _, msg := range req.Messages {
+			inputTokens += len(msg.Content) / 4 // Rough estimate
+		}
+		inputTokens += len(req.Message) / 4
+		
+		// Track metrics for input tokens
+		chatTokensCounter.WithLabelValues("input", model).Add(float64(inputTokens))
+
 		var messages []openai.ChatCompletionMessageParamUnion
 		for _, msg := range req.Messages {
 			var message openai.ChatCompletionMessageParamUnion
 			switch msg.Role {
 			case "user":
 				message = openai.UserMessage(msg.Content)
-				tokenCounter.Input += len(msg.Content) / 4 // Rough estimate of tokens
 			case "assistant":
 				message = openai.AssistantMessage(msg.Content)
-				tokenCounter.Output += len(msg.Content) / 4 // Rough estimate of tokens
 			}
 
 			messages = append(messages, message)
 		}
 
-		// Add the current user message
-		messages = append(messages, openai.UserMessage(req.Message))
-		tokenCounter.Input += len(req.Message) / 4 // Rough estimate of tokens
-
-		// Start timing for model latency metrics
-		startTime := time.Now()
+		// Start model timing
+		modelStartTime := time.Now()
 		var firstTokenTime time.Time
+		outputTokens := 0
 
-		// Create chat completion parameters
+		// Adds the user message to the conversation
+		messages = append(messages, openai.UserMessage(req.Message))
+		
 		param := openai.ChatCompletionNewParams{
 			Messages: openai.F(messages),
 			Model:    openai.F(model),
 		}
 
-		// Create streaming request
 		stream := client.Chat.Completions.NewStreaming(ctx, param)
 
-		// Process the stream
 		for stream.Next() {
 			chunk := stream.Current()
 
-			// Record first token time if not already set
+			// Record first token time
 			if firstTokenTime.IsZero() && len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
 				firstTokenTime = time.Now()
 			}
 
 			// Stream each chunk as it arrives
 			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-				token := chunk.Choices[0].Delta.Content
-				tokenCounter.Output += 1 // Increment token count
-				if _, err := w.Write([]byte(token)); err != nil {
-					log.Error().Err(err).Msg("Error writing to stream")
-					metrics.ErrorCounter.WithLabelValues("stream_write", "chat").Inc()
+				outputTokens++
+				_, err := fmt.Fprintf(w, "%s", chunk.Choices[0].Delta.Content)
+				if err != nil {
+					log.Printf("Error writing to stream: %v", err)
 					return
 				}
 				w.(http.Flusher).Flush()
 			}
 		}
 
-		// Check for errors
+		// Record metrics
+		requestDuration.WithLabelValues(r.Method, r.URL.Path).Observe(time.Since(start).Seconds())
+		requestCounter.WithLabelValues(r.Method, r.URL.Path, "200").Inc()
+		chatTokensCounter.WithLabelValues("output", model).Add(float64(outputTokens))
+		modelLatency.WithLabelValues(model, "inference").Observe(time.Since(modelStartTime).Seconds())
+		
+		if !firstTokenTime.IsZero() {
+			ttft := firstTokenTime.Sub(modelStartTime).Seconds()
+			log.Printf("Time to first token: %.3f seconds", ttft)
+		}
+
 		if err := stream.Err(); err != nil {
-			log.Error().Err(err).Msg("Error in stream")
-			metrics.ErrorCounter.WithLabelValues("stream_error", "chat").Inc()
+			log.Printf("Error in stream: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
-
-		// Record metrics for the request
-		metrics.RecordModelInference(
-			model,
-			startTime,
-			tokenCounter.Input,
-			tokenCounter.Output,
-			firstTokenTime,
-		)
-
-		log.Info().
-			Str("model", model).
-			Int("input_tokens", tokenCounter.Input).
-			Int("output_tokens", tokenCounter.Output).
-			Dur("total_duration", time.Since(startTime)).
-			Dur("time_to_first_token", firstTokenTime.Sub(startTime)).
-			Msg("Chat completion finished")
 	})
-
-	// Apply middleware to the chat handler
-	rateLimit := middleware.RateLimiter(60) // 60 requests per minute
-	wrappedChatHandler := middleware.RequestLogger(rateLimit(chatHandler))
-	mux.Handle("/chat", wrappedChatHandler)
 
 	// Create HTTP server
 	server := &http.Server{
@@ -225,19 +231,23 @@ func main() {
 	}
 
 	// Start metrics server on a separate port
-	metricsServer := metrics.SetupMetricsServer(":9090")
+	metricsServer := &http.Server{
+		Addr:    ":9090",
+		Handler: promhttp.Handler(),
+	}
+	
 	go func() {
-		log.Info().Str("addr", ":9090").Msg("Starting metrics server")
+		log.Println("Starting metrics server on :9090")
 		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Msg("Failed to start metrics server")
+			log.Fatalf("Failed to start metrics server: %v", err)
 		}
 	}()
 
 	// Start the main server
 	go func() {
-		log.Info().Str("addr", ":8080").Msg("Starting server")
+		log.Println("Starting server on :8080")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Msg("Failed to start server")
+			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
@@ -245,7 +255,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Info().Msg("Shutting down server...")
+	log.Println("Shutting down server...")
 
 	// Shutdown the server with a timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -253,19 +263,11 @@ func main() {
 
 	// Shutdown servers
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatal().Err(err).Msg("Server forced to shutdown")
+		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 	if err := metricsServer.Shutdown(ctx); err != nil {
-		log.Fatal().Err(err).Msg("Metrics server forced to shutdown")
+		log.Fatalf("Metrics server forced to shutdown: %v", err)
 	}
 
-	log.Info().Msg("Server exiting")
-}
-
-// getEnvOrDefault gets an environment variable or returns a default value
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
+	log.Println("Server exiting")
 }
