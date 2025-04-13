@@ -2,16 +2,19 @@ package tracing
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/semconv/v1.12.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	otelTrace "go.opentelemetry.io/otel/trace"
 )
 
 // SetupTracing initializes OpenTelemetry tracing
@@ -45,6 +48,7 @@ func SetupTracing(serviceName string, otlpEndpoint string) (func(), error) {
 			trace.WithBatcher(exporter,
 				trace.WithBatchTimeout(5*time.Second),
 			),
+			trace.WithSampler(trace.AlwaysSample()), // Sample all traces for development
 		)
 	} else {
 		// Use a no-op exporter if no endpoint is provided
@@ -68,19 +72,25 @@ func SetupTracing(serviceName string, otlpEndpoint string) (func(), error) {
 }
 
 // StartSpan starts a new span
-func StartSpan(ctx context.Context, spanName string) (context.Context, func()) {
+func StartSpan(ctx context.Context, spanName string) (context.Context, otelTrace.Span) {
 	tracer := otel.Tracer("genai-app")
 	ctx, span := tracer.Start(ctx, spanName)
-	
-	return ctx, func() {
-		span.End()
-	}
+	return ctx, span
 }
 
-// AddAttribute adds an attribute to the current span
+// AddAttributes adds multiple attributes to the current span
+func AddAttributes(ctx context.Context, attrs ...attribute.KeyValue) {
+	span := otelTrace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return
+	}
+	span.SetAttributes(attrs...)
+}
+
+// AddAttribute adds a single attribute to the current span
 func AddAttribute(ctx context.Context, key string, value interface{}) {
-	span := otel.GetTracerProvider().Tracer("genai-app").TracerProvider()
-	if span == nil {
+	span := otelTrace.SpanFromContext(ctx)
+	if !span.IsRecording() {
 		return
 	}
 	
@@ -102,4 +112,47 @@ func AddAttribute(ctx context.Context, key string, value interface{}) {
 	}
 	
 	span.SetAttributes(attr)
+}
+
+// RecordError records an error in the current span
+func RecordError(ctx context.Context, err error, message string) {
+	if err == nil {
+		return
+	}
+	
+	span := otelTrace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return
+	}
+	
+	span.RecordError(err)
+	span.SetStatus(codes.Error, message)
+	if message != "" {
+		span.SetAttributes(attribute.String("error.message", message))
+	}
+}
+
+// End ends the current span
+func End(ctx context.Context) {
+	span := otelTrace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return
+	}
+	span.End()
+}
+
+// CreateEvent creates an event in the current span
+func CreateEvent(ctx context.Context, name string, attrs ...attribute.KeyValue) {
+	span := otelTrace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return
+	}
+	span.AddEvent(name, otelTrace.WithAttributes(attrs...))
+}
+
+// StartChildSpan starts a child span from the current span
+func StartChildSpan(ctx context.Context, spanName string) (context.Context, otelTrace.Span) {
+	tracer := otel.Tracer("genai-app")
+	ctx, span := tracer.Start(ctx, spanName)
+	return ctx, span
 }

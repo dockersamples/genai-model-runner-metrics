@@ -8,15 +8,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/ajeetraina/genai-app-demo/pkg/middleware"
+	"github.com/ajeetraina/genai-app-demo/pkg/tracing"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Message struct {
@@ -176,6 +181,24 @@ func main() {
 	model := os.Getenv("MODEL")
 	apiKey := os.Getenv("API_KEY")
 
+	// Tracing setup
+	tracingEnabled, _ := strconv.ParseBool(getEnvOrDefault("TRACING_ENABLED", "false"))
+	var tracingCleanup func()
+
+	if tracingEnabled {
+		otlpEndpoint := getEnvOrDefault("OTLP_ENDPOINT", "jaeger:4318")
+		log.Printf("Setting up tracing with endpoint: %s", otlpEndpoint)
+
+		cleanup, err := tracing.SetupTracing("genai-app", otlpEndpoint)
+		if err != nil {
+			log.Printf("Failed to set up tracing: %v", err)
+		} else {
+			tracingCleanup = cleanup
+			defer tracingCleanup()
+			log.Println("Tracing initialized successfully")
+		}
+	}
+
 	// Create OpenAI client
 	client := openai.NewClient(
 		option.WithBaseURL(baseURL),
@@ -184,6 +207,15 @@ func main() {
 
 	// Create router
 	mux := http.NewServeMux()
+
+	// Apply middleware
+	handlersChain := func(h http.Handler) http.Handler {
+		h = middleware.MetricsMiddleware(requestCounter, requestDuration, activeRequests)(h)
+		if tracingEnabled {
+			h = middleware.TracingMiddleware(h)
+		}
+		return h
+	}
 
 	// Add CORS handler
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -291,123 +323,13 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Add chat endpoint
-	mux.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		activeRequests.Inc()
-		defer activeRequests.Dec()
-		
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var req ChatRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			log.Printf("Invalid request body: %v", err)
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			requestCounter.WithLabelValues(r.Method, r.URL.Path, fmt.Sprintf("%d", http.StatusBadRequest)).Inc()
-			return
-		}
-
-		// Set headers for SSE
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-
-		ctx := r.Context()
-
-		// Count input tokens (rough estimate)
-		inputTokens := 0
-		for _, msg := range req.Messages {
-			inputTokens += len(msg.Content) / 4 // Rough estimate
-		}
-		inputTokens += len(req.Message) / 4
-		
-		// Track metrics for input tokens
-		chatTokensCounter.WithLabelValues("input", model).Add(float64(inputTokens))
-
-		var messages []openai.ChatCompletionMessageParamUnion
-		for _, msg := range req.Messages {
-			var message openai.ChatCompletionMessageParamUnion
-			switch msg.Role {
-			case "user":
-				message = openai.UserMessage(msg.Content)
-			case "assistant":
-				message = openai.AssistantMessage(msg.Content)
-			}
-
-			messages = append(messages, message)
-		}
-
-		// Start model timing
-		modelStartTime := time.Now()
-		var firstTokenTime time.Time
-		outputTokens := 0
-
-		// Adds the user message to the conversation
-		messages = append(messages, openai.UserMessage(req.Message))
-		
-		param := openai.ChatCompletionNewParams{
-			Messages: openai.F(messages),
-			Model:    openai.F(model),
-		}
-
-		stream := client.Chat.Completions.NewStreaming(ctx, param)
-
-		for stream.Next() {
-			chunk := stream.Current()
-
-			// Record first token time
-			if firstTokenTime.IsZero() && len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-				firstTokenTime = time.Now()
-			}
-
-			// Stream each chunk as it arrives
-			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-				outputTokens++
-				_, err := fmt.Fprintf(w, "%s", chunk.Choices[0].Delta.Content)
-				if err != nil {
-					log.Printf("Error writing to stream: %v", err)
-					return
-				}
-				w.(http.Flusher).Flush()
-			}
-		}
-
-		// Record metrics
-		requestDuration.WithLabelValues(r.Method, r.URL.Path).Observe(time.Since(start).Seconds())
-		requestCounter.WithLabelValues(r.Method, r.URL.Path, "200").Inc()
-		chatTokensCounter.WithLabelValues("output", model).Add(float64(outputTokens))
-		modelLatency.WithLabelValues(model, "inference").Observe(time.Since(modelStartTime).Seconds())
-		
-		if !firstTokenTime.IsZero() {
-			ttft := firstTokenTime.Sub(modelStartTime).Seconds()
-			log.Printf("Time to first token: %.3f seconds", ttft)
-			firstTokenLatency.WithLabelValues(model).Observe(ttft)
-		}
-
-		if err := stream.Err(); err != nil {
-			log.Printf("Error in stream: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-	})
+	// Add chat endpoint with advanced tracing
+	mux.HandleFunc("/chat", handleChatWithTracing(client, model))
 
 	// Create HTTP server
 	server := &http.Server{
 		Addr:         ":8080",
-		Handler:      mux,
+		Handler:      handlersChain(mux),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 90 * time.Second,
 	}
@@ -452,4 +374,165 @@ func main() {
 	}
 
 	log.Println("Server exiting")
+}
+
+// getEnvOrDefault gets an environment variable or returns a default value
+func getEnvOrDefault(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+// handleChatWithTracing handles the chat endpoint with detailed tracing
+func handleChatWithTracing(client *openai.Client, model string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req ChatRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.Printf("Invalid request body: %v", err)
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			requestCounter.WithLabelValues(r.Method, r.URL.Path, fmt.Sprintf("%d", http.StatusBadRequest)).Inc()
+			tracing.RecordError(r.Context(), err, "Failed to decode request body")
+			return
+		}
+
+		// Set headers for SSE
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// Start tracing for model inference
+		tracedInference := tracing.NewTracedModelInference(r.Context(), model)
+		defer tracedInference.End(0, nil) // Will be updated with actual token count
+
+		// Count input tokens (rough estimate)
+		inputTokens := 0
+		for _, msg := range req.Messages {
+			inputTokens += len(msg.Content) / 4 // Rough estimate
+		}
+		inputTokens += len(req.Message) / 4
+		
+		// Track metrics for input tokens
+		chatTokensCounter.WithLabelValues("input", model).Add(float64(inputTokens))
+
+		// Create span event for building message context
+		tracedInference.StartProcessing("build_messages")
+		tracing.AddAttribute(tracedInference.Ctx, "message_count", len(req.Messages)+1)
+		tracing.AddAttribute(tracedInference.Ctx, "input_tokens", inputTokens)
+
+		var messages []openai.ChatCompletionMessageParamUnion
+		for _, msg := range req.Messages {
+			var message openai.ChatCompletionMessageParamUnion
+			switch msg.Role {
+			case "user":
+				message = openai.UserMessage(msg.Content)
+			case "assistant":
+				message = openai.AssistantMessage(msg.Content)
+			}
+
+			messages = append(messages, message)
+		}
+
+		// Add the user message to the conversation
+		messages = append(messages, openai.UserMessage(req.Message))
+		tracedInference.EndProcessing()
+
+		// Start model timing
+		tracedInference.StartProcessing("model_inference")
+		modelStartTime := time.Now()
+		var firstTokenTime time.Time
+		outputTokens := 0
+
+		param := openai.ChatCompletionNewParams{
+			Messages: openai.F(messages),
+			Model:    openai.F(model),
+		}
+
+		ctx := r.Context()
+		tracing.AddAttributes(ctx, 
+			attribute.String("model.name", model),
+			attribute.Int("input.tokens", inputTokens),
+		)
+
+		// Create stream event
+		tracing.CreateEvent(tracedInference.Ctx, "stream_start")
+		stream := client.Chat.Completions.NewStreaming(ctx, param)
+
+		for stream.Next() {
+			chunk := stream.Current()
+
+			// Record first token time
+			if firstTokenTime.IsZero() && len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
+				firstTokenTime = time.Now()
+				ttft := firstTokenTime.Sub(modelStartTime)
+				
+				// Create event for first token
+				tracedInference.RecordFirstToken(ttft)
+				tracing.CreateEvent(tracedInference.Ctx, "first_token_received", 
+					attribute.Float64("time_to_first_token_ms", float64(ttft.Milliseconds())),
+				)
+			}
+
+			// Stream each chunk as it arrives
+			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
+				outputTokens++
+				_, err := fmt.Fprintf(w, "%s", chunk.Choices[0].Delta.Content)
+				if err != nil {
+					log.Printf("Error writing to stream: %v", err)
+					tracing.RecordError(tracedInference.Ctx, err, "Error writing to stream")
+					return
+				}
+				w.(http.Flusher).Flush()
+				
+				// Record token event every 50 tokens to avoid too many events
+				if outputTokens % 50 == 0 {
+					tracing.CreateEvent(tracedInference.Ctx, "tokens_generated", 
+						attribute.Int("tokens_so_far", outputTokens),
+					)
+				}
+			}
+		}
+		
+		tracedInference.EndProcessing()
+
+		// Record metrics
+		chatTokensCounter.WithLabelValues("output", model).Add(float64(outputTokens))
+		modelLatency.WithLabelValues(model, "inference").Observe(time.Since(modelStartTime).Seconds())
+		
+		if !firstTokenTime.IsZero() {
+			ttft := firstTokenTime.Sub(modelStartTime).Seconds()
+			log.Printf("Time to first token: %.3f seconds", ttft)
+			firstTokenLatency.WithLabelValues(model).Observe(ttft)
+		}
+
+		// Record token counts in the span
+		tracedInference.RecordTokenCounts(inputTokens, outputTokens)
+
+		// Handle stream errors
+		if err := stream.Err(); err != nil {
+			log.Printf("Error in stream: %v", err)
+			tracing.RecordError(tracedInference.Ctx, err, "Error in stream")
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		
+		// Final update to the tracing end (with correct token count)
+		tracedInference.End(outputTokens, nil)
+	}
 }
