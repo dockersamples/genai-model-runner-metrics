@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/client_model/go"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
