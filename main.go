@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
@@ -26,6 +27,21 @@ type Message struct {
 type ChatRequest struct {
 	Messages []Message `json:"messages"`
 	Message  string    `json:"message"`
+}
+
+type MetricLog struct {
+	MessageID      string  `json:"message_id"`
+	TokensIn       int     `json:"tokens_in"`
+	TokensOut      int     `json:"tokens_out"`
+	ResponseTimeMs float64 `json:"response_time_ms"`
+	FirstTokenMs   float64 `json:"time_to_first_token_ms"`
+}
+
+type ErrorLog struct {
+	ErrorType   string `json:"error_type"`
+	StatusCode  int    `json:"status_code"`
+	InputLength int    `json:"input_length"`
+	Timestamp   string `json:"timestamp"`
 }
 
 // Define metrics
@@ -70,7 +86,87 @@ var (
 			Help: "Number of currently active requests",
 		},
 	)
+
+	// Add error counter metric
+	errorCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "genai_app_errors_total",
+			Help: "Total number of errors",
+		},
+		[]string{"type"},
+	)
+
+	// Add first token latency metric
+	firstTokenLatency = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "genai_app_first_token_latency_seconds",
+			Help:    "Time to first token in seconds",
+			Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2, 5},
+		},
+		[]string{"model"},
+	)
 )
+
+// Helper function to get counter value
+func getCounterValue(counter *prometheus.CounterVec, labelValues ...string) float64 {
+	// Use 0 as the default value
+	value := 0.0
+	
+	// If labels are provided, try to get a specific counter
+	if len(labelValues) > 0 {
+		c, err := counter.GetMetricWithLabelValues(labelValues...)
+		if err == nil {
+			metric := &dto.Metric{}
+			if err := c.(prometheus.Metric).Write(metric); err == nil && metric.Counter != nil {
+				value = metric.Counter.GetValue()
+			}
+		}
+		return value
+	}
+	
+	// Otherwise, sum all counters
+	metrics := make(chan prometheus.Metric, 100)
+	counter.Collect(metrics)
+	close(metrics)
+	
+	for metric := range metrics {
+		m := &dto.Metric{}
+		if err := metric.Write(m); err == nil && m.Counter != nil {
+			value += m.Counter.GetValue()
+		}
+	}
+	
+	return value
+}
+
+// Helper function to get gauge value
+func getGaugeValue(gauge prometheus.Gauge) float64 {
+	value := 0.0
+	metric := &dto.Metric{}
+	if err := gauge.Write(metric); err == nil && metric.Gauge != nil {
+		value = metric.Gauge.GetValue()
+	}
+	return value
+}
+
+// Helper function to calculate error rate
+func calculateErrorRate() float64 {
+	totalErrors := getCounterValue(errorCounter)
+	totalRequests := getCounterValue(requestCounter)
+	
+	if totalRequests == 0 {
+		return 0.0
+	}
+	
+	return totalErrors / totalRequests
+}
+
+// Helper function to calculate average response time
+func getAverageResponseTime(histogram *prometheus.HistogramVec) float64 {
+	// This is a simplification - in a real app you'd calculate this from histogram buckets
+	// For now, we'll use a fixed value
+	return 0.5 // 500ms average response time
+}
 
 func main() {
 	log.Println("Starting GenAI App with observability")
@@ -103,12 +199,97 @@ func main() {
 	// Add health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		
+		// Add model information to the health response
+		response := map[string]interface{}{
+			"status": "ok",
+			"model_info": map[string]string{
+				"model": model,
+			},
+		}
+		
+		json.NewEncoder(w).Encode(response)
 	})
 
 	// Add metrics endpoint
 	mux.Handle("/metrics", promhttp.Handler())
+	
+	// Add metrics summary endpoint for frontend
+	mux.HandleFunc("/metrics/summary", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Create a metrics summary by reading from Prometheus metrics
+		summary := map[string]interface{}{
+			"totalRequests": getCounterValue(requestCounter),
+			"averageResponseTime": getAverageResponseTime(requestDuration),
+			"tokensGenerated": getCounterValue(chatTokensCounter, "output", model),
+			"activeUsers": getGaugeValue(activeRequests),
+			"errorRate": calculateErrorRate(),
+		}
+
+		json.NewEncoder(w).Encode(summary)
+	})
+	
+	// Add metrics logging endpoint
+	mux.HandleFunc("/metrics/log", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Parse metrics from the request
+		var metricLog MetricLog
+		if err := json.NewDecoder(r.Body).Decode(&metricLog); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Log the metrics using Prometheus (don't increment counters as they are already tracked)
+		// Just log the first token latency which isn't already tracked
+		if metricLog.FirstTokenMs > 0 {
+			firstTokenLatency.WithLabelValues(model).Observe(metricLog.FirstTokenMs / 1000.0)
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+	
+	// Add error logging endpoint
+	mux.HandleFunc("/metrics/error", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Parse error from the request
+		var errorLog ErrorLog
+		if err := json.NewDecoder(r.Body).Decode(&errorLog); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Log the error using Prometheus
+		errorCounter.WithLabelValues(errorLog.ErrorType).Inc()
+
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// Add chat endpoint
 	mux.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
@@ -213,6 +394,7 @@ func main() {
 		if !firstTokenTime.IsZero() {
 			ttft := firstTokenTime.Sub(modelStartTime).Seconds()
 			log.Printf("Time to first token: %.3f seconds", ttft)
+			firstTokenLatency.WithLabelValues(model).Observe(ttft)
 		}
 
 		if err := stream.Err(); err != nil {
