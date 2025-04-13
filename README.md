@@ -91,6 +91,9 @@ docker model pull ignaciolopezluna020/llama3.2:1B
 
 4. Access observability dashboards:
    - Grafana: [http://localhost:3001](http://localhost:3001) (admin/admin)
+  
+Ensure that you provide `http://prometheus:9091` instead of `localhost:9091` to seee the metrics on the Grafana dashboard.
+
    - Jaeger UI: [http://localhost:16686](http://localhost:16686)
    - Prometheus: [http://localhost:9091](http://localhost:9091)
 
