@@ -22,6 +22,10 @@ import (
 	"github.com/openai/openai-go/option"
 )
 
+// Create a custom registry for metrics
+var registry = prometheus.NewRegistry()
+var promautoFactory = promauto.With(registry)
+
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -49,7 +53,7 @@ type ErrorLog struct {
 
 // Define metrics
 var (
-	requestCounter = promauto.NewCounterVec(
+	requestCounter = promautoFactory.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "genai_app_http_requests_total",
 			Help: "Total number of HTTP requests",
@@ -57,7 +61,7 @@ var (
 		[]string{"method", "endpoint", "status"},
 	)
 	
-	requestDuration = promauto.NewHistogramVec(
+	requestDuration = promautoFactory.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "genai_app_http_request_duration_seconds",
 			Help:    "HTTP request duration in seconds",
@@ -66,7 +70,7 @@ var (
 		[]string{"method", "endpoint"},
 	)
 	
-	chatTokensCounter = promauto.NewCounterVec(
+	chatTokensCounter = promautoFactory.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "genai_app_chat_tokens_total",
 			Help: "Total number of tokens processed in chat",
@@ -74,7 +78,7 @@ var (
 		[]string{"direction", "model"},
 	)
 	
-	modelLatency = promauto.NewHistogramVec(
+	modelLatency = promautoFactory.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "genai_app_model_latency_seconds",
 			Help:    "Model response time in seconds",
@@ -83,7 +87,7 @@ var (
 		[]string{"model", "operation"},
 	)
 	
-	activeRequests = promauto.NewGauge(
+	activeRequests = promautoFactory.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "genai_app_active_requests",
 			Help: "Number of currently active requests",
@@ -91,7 +95,7 @@ var (
 	)
 
 	// Add error counter metric
-	errorCounter = promauto.NewCounterVec(
+	errorCounter = promautoFactory.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "genai_app_errors_total",
 			Help: "Total number of errors",
@@ -100,7 +104,7 @@ var (
 	)
 
 	// Add first token latency metric
-	firstTokenLatency = promauto.NewHistogramVec(
+	firstTokenLatency = promautoFactory.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "genai_app_first_token_latency_seconds",
 			Help:    "Time to first token in seconds",
@@ -243,8 +247,8 @@ func main() {
 		json.NewEncoder(w).Encode(response)
 	})
 
-	// Add metrics endpoint
-	mux.Handle("/metrics", promhttp.Handler())
+	// Add metrics endpoint using custom registry
+	mux.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	
 	// Add metrics summary endpoint for frontend
 	mux.HandleFunc("/metrics/summary", func(w http.ResponseWriter, r *http.Request) {
@@ -332,10 +336,10 @@ func main() {
 		WriteTimeout: 90 * time.Second,
 	}
 
-	// Start metrics server on a separate port
+	// Start metrics server on a separate port with custom registry
 	metricsServer := &http.Server{
 		Addr:    ":9090",
-		Handler: promhttp.Handler(),
+		Handler: promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 	}
 	
 	go func() {
