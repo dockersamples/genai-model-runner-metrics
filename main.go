@@ -20,7 +20,6 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type Message struct {
@@ -425,6 +424,12 @@ func handleChat(client *openai.Client, model string) http.HandlerFunc {
 		// Track metrics for input tokens
 		chatTokensCounter.WithLabelValues("input", model).Add(float64(inputTokens))
 
+		// Start model timing
+		start := time.Now()
+		modelStartTime := time.Now()
+		var firstTokenTime time.Time
+		outputTokens := 0
+
 		var messages []openai.ChatCompletionMessageParamUnion
 		for _, msg := range req.Messages {
 			var message openai.ChatCompletionMessageParamUnion
@@ -437,11 +442,6 @@ func handleChat(client *openai.Client, model string) http.HandlerFunc {
 
 			messages = append(messages, message)
 		}
-
-		// Start model timing
-		modelStartTime := time.Now()
-		var firstTokenTime time.Time
-		outputTokens := 0
 
 		// Add the user message to the conversation
 		messages = append(messages, openai.UserMessage(req.Message))
