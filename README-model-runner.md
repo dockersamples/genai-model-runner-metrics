@@ -16,7 +16,7 @@ llm:
   provider:
     type: model
     options:
-      model: ${LLM_MODEL_NAME:-llama3:latest}
+      model: ${LLM_MODEL_NAME:-ai/llama3.2:1B-Q8_0}
 ```
 
 This allows the backend service to connect to the LLM service using the hostname `llm` on port 11434.
@@ -25,11 +25,16 @@ This allows the backend service to connect to the LLM service using the hostname
 
 You can configure the model to use by setting the `LLM_MODEL_NAME` environment variable in the `.env` file. 
 
-Supported models include:
-- `llama3:latest` (default)
-- `llama3:8b`
-- `llama3:70b`
-- Other models available in the Docker Model Runner
+Supported models are those available in your Docker Model Runner. You can check available models with:
+
+```bash
+docker model ls
+```
+
+Currently available models include:
+- `ai/llama3.2:1B-Q8_0` (default)
+- `ai/gemma3:4B-F16`
+- `ai/mxbai-embed-large`
 
 ## Running the Application
 
