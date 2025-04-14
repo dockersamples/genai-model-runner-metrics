@@ -75,7 +75,7 @@ services:
     provider:
       type: model
       options:
-        model: ${LLM_MODEL_NAME:-llama3:latest}
+        model: ${LLM_MODEL_NAME:-ai/llama3.2:1B-Q8_0}
 
 volumes:
   grafana-data:
