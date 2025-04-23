@@ -12,8 +12,6 @@ export default function ChatBox() {
   const [showMetrics, setShowMetrics] = useState(true); // Default to true to show metrics
   const [messageMetrics, setMessageMetrics] = useState<Record<string, MessageMetrics>>({});
   const [modelInfo, setModelInfo] = useState<ModelMetadata | null>(null);
-  // Keep track of total tokens for the session
-  const [sessionTokens, setSessionTokens] = useState({ in: 0, out: 0 });
 
   // Load messages from local storage on initial render
   useEffect(() => {
@@ -28,9 +26,6 @@ export default function ChatBox() {
 
     // Fetch model information
     fetchModelInfo();
-
-    // Reset the local token counts
-    setSessionTokens({ in: 0, out: 0 });
   }, []);
 
   // Save messages to local storage when they change
@@ -66,12 +61,6 @@ export default function ChatBox() {
       const tokensIn = estimateTokenCount(currentInput);
       
       console.log('Input tokens calculated:', tokensIn); // Debug log
-      
-      // Update session tokens
-      setSessionTokens(prev => ({
-        ...prev,
-        in: prev.in + tokensIn
-      }));
       
       const metric: MessageMetrics = {
         requestTime: requestStartTime,
@@ -179,12 +168,6 @@ export default function ChatBox() {
       );
     }
 
-    // Update session tokens
-    setSessionTokens(prev => ({
-      ...prev,
-      out: prev.out + tokenCount
-    }));
-
     // Record final metrics after response is complete
     const responseEndTime = performance.now();
     setMessageMetrics(prev => {
@@ -254,7 +237,6 @@ export default function ChatBox() {
   const clearConversation = () => {
     setMessages([]);
     setMessageMetrics({});
-    setSessionTokens({ in: 0, out: 0 }); // Reset token counts when clearing
     localStorage.removeItem('chatMessages');
   };
 
@@ -291,7 +273,8 @@ export default function ChatBox() {
         </div>
       </div>
       
-      {showMetrics && <Metrics isVisible={showMetrics} localTokens={sessionTokens} />}
+      {/* Pass the messages array directly to the Metrics component */}
+      {showMetrics && <Metrics isVisible={showMetrics} messages={messages} />}
       
       <MessageList messages={messages} showTokenCount={true} />
       <MessageInput
