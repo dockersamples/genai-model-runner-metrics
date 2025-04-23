@@ -58,22 +58,26 @@ export default function ChatBox() {
       // Record message metrics
       const messageId = Date.now().toString();
       const requestStartTime = performance.now();
+      const tokensIn = estimateTokenCount(currentInput);
       const metric: MessageMetrics = {
         requestTime: requestStartTime,
         responseTime: 0,
-        tokensIn: estimateTokenCount(currentInput),
+        tokensIn: tokensIn,
         tokensOut: 0,
         firstTokenTime: 0
       };
       setMessageMetrics(prev => ({ ...prev, [messageId]: metric }));
 
-      // Add user message to the chat
+      // Add user message to the chat with token count
       setMessages((prev) => [
         ...prev,
         {
           id: messageId,
           role: 'user',
           content: currentInput,
+          metrics: {
+            tokensIn: tokensIn
+          }
         },
       ]);
 
@@ -111,6 +115,9 @@ export default function ChatBox() {
       id: aiMessageId,
       role: 'assistant',
       content: '',
+      metrics: {
+        tokensOut: 0
+      }
     };
     setMessages((prev) => [...prev, aiMessage]);
 
@@ -141,10 +148,18 @@ export default function ChatBox() {
         });
       }
 
+      // Update message content and token count
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === aiMessageId
-            ? { ...msg, content: msg.content + chunk }
+            ? { 
+                ...msg, 
+                content: msg.content + chunk,
+                metrics: {
+                  ...msg.metrics,
+                  tokensOut: tokenCount
+                }
+              }
             : msg,
         ),
       );
@@ -256,7 +271,7 @@ export default function ChatBox() {
       
       {showMetrics && <Metrics isVisible={showMetrics} />}
       
-      <MessageList messages={messages} />
+      <MessageList messages={messages} showTokenCount={true} />
       <MessageInput
         input={input}
         setInput={setInput}
