@@ -3,11 +3,11 @@ import { MetricsData } from '../types';
 
 interface MetricsProps {
   isVisible: boolean;
-  localTokens?: { in: number; out: number };
+  messages?: { id: string; role: string; content: string; metrics?: { tokensIn?: number; tokensOut?: number } }[];
 }
 
-export function Metrics({ isVisible, localTokens = { in: 0, out: 0 } }: MetricsProps) {
-  const [metrics, setMetrics] = useState<MetricsData>({
+export function Metrics({ isVisible, messages = [] }: MetricsProps) {
+  const [serverMetrics, setServerMetrics] = useState<MetricsData>({
     totalRequests: 0,
     averageResponseTime: 0,
     tokensGenerated: 0,
@@ -15,6 +15,25 @@ export function Metrics({ isVisible, localTokens = { in: 0, out: 0 } }: MetricsP
     activeUsers: 0,
     errorRate: 0,
   });
+
+  // Calculate local metrics from messages
+  const calculateLocalMetrics = () => {
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    messages.forEach(message => {
+      if (message.role === 'user' && message.metrics?.tokensIn) {
+        inputTokens += message.metrics.tokensIn;
+      }
+      if (message.role === 'assistant' && message.metrics?.tokensOut) {
+        outputTokens += message.metrics.tokensOut;
+      }
+    });
+
+    return { inputTokens, outputTokens };
+  };
+
+  const { inputTokens, outputTokens } = calculateLocalMetrics();
 
   useEffect(() => {
     // Skip fetching if the metrics panel is not visible
@@ -25,7 +44,7 @@ export function Metrics({ isVisible, localTokens = { in: 0, out: 0 } }: MetricsP
         const response = await fetch('http://localhost:8080/metrics/summary');
         if (response.ok) {
           const data = await response.json();
-          setMetrics(data);
+          setServerMetrics(data);
         }
       } catch (error) {
         console.error('Failed to fetch metrics:', error);
@@ -40,33 +59,35 @@ export function Metrics({ isVisible, localTokens = { in: 0, out: 0 } }: MetricsP
   }, [isVisible]);
 
   if (!isVisible) return null;
-
-  // Use local token counts for immediate feedback, fall back to server data for historical stats
-  const inputTokens = localTokens.in > 0 ? localTokens.in : (metrics.tokensProcessed || 0);
-  const outputTokens = localTokens.out > 0 ? localTokens.out : (metrics.tokensGenerated || 0);
+  
+  // Debug logging
+  console.log('Current message metrics:', { inputTokens, outputTokens });
+  console.log('Current messages:', messages);
 
   return (
     <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg shadow mb-4">
       <h3 className="text-lg font-semibold mb-2">System Metrics</h3>
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <MetricCard title="Total Requests" value={metrics.totalRequests} />
+        <MetricCard title="Total Requests" value={serverMetrics.totalRequests} />
         <MetricCard 
           title="Avg Response Time" 
-          value={`${metrics.averageResponseTime.toFixed(2)}s`} 
+          value={`${serverMetrics.averageResponseTime.toFixed(2)}s`} 
         />
         <MetricCard 
           title="Input Tokens" 
-          value={inputTokens.toLocaleString()} 
+          value={inputTokens || 0} 
+          highlight={true}
         />
         <MetricCard 
           title="Output Tokens" 
-          value={outputTokens.toLocaleString()} 
+          value={outputTokens || 0} 
+          highlight={true}
         />
-        <MetricCard title="Active Users" value={metrics.activeUsers} />
+        <MetricCard title="Active Users" value={serverMetrics.activeUsers} />
         <MetricCard 
           title="Error Rate" 
-          value={`${(metrics.errorRate * 100).toFixed(2)}%`} 
-          isError={metrics.errorRate > 0.05}
+          value={`${(serverMetrics.errorRate * 100).toFixed(2)}%`} 
+          isError={serverMetrics.errorRate > 0.05}
         />
       </div>
       <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
@@ -91,13 +112,14 @@ interface MetricCardProps {
   title: string;
   value: string | number;
   isError?: boolean;
+  highlight?: boolean;
 }
 
-function MetricCard({ title, value, isError = false }: MetricCardProps) {
+function MetricCard({ title, value, isError = false, highlight = false }: MetricCardProps) {
   return (
-    <div className="bg-white dark:bg-gray-700 p-3 rounded shadow">
+    <div className={`${highlight ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-white dark:bg-gray-700'} p-3 rounded shadow`}>
       <div className="text-sm text-gray-500 dark:text-gray-400">{title}</div>
-      <div className={`text-lg font-semibold ${isError ? 'text-red-500' : ''}`}>
+      <div className={`text-lg font-semibold ${isError ? 'text-red-500' : (highlight ? 'text-blue-600 dark:text-blue-400' : '')}`}>
         {value}
       </div>
     </div>
