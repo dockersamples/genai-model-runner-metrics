@@ -3,9 +3,10 @@ import { Message } from '../types';
 
 interface MessageItemProps {
   message: Message;
+  showTokenCount?: boolean;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({ message, showTokenCount = false }) => {
   const isUser = message.role === 'user';
   const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -29,8 +30,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
         >
           {message.content}
         </div>
-        <div className={`text-xs text-gray-500 mt-1 ${isUser ? 'text-right' : 'text-left'}`}>
-          {timestamp}
+        <div className={`text-xs mt-1 ${isUser ? 'text-right' : 'text-left'} flex items-center ${isUser ? 'justify-end' : 'justify-start'}`}>
+          <span className="text-gray-500">{timestamp}</span>
+          
+          {showTokenCount && message.metrics && (
+            <div className="flex items-center ml-2">
+              {isUser && message.metrics.tokensIn !== undefined && (
+                <span className="text-gray-500 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">
+                  {message.metrics.tokensIn} tokens
+                </span>
+              )}
+              {!isUser && message.metrics.tokensOut !== undefined && (
+                <span className="text-gray-500 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">
+                  {message.metrics.tokensOut} tokens
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
       {isUser && (
