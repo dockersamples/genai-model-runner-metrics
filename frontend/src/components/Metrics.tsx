@@ -3,9 +3,10 @@ import { MetricsData } from '../types';
 
 interface MetricsProps {
   isVisible: boolean;
+  localTokens?: { in: number; out: number };
 }
 
-export function Metrics({ isVisible }: MetricsProps) {
+export function Metrics({ isVisible, localTokens = { in: 0, out: 0 } }: MetricsProps) {
   const [metrics, setMetrics] = useState<MetricsData>({
     totalRequests: 0,
     averageResponseTime: 0,
@@ -40,6 +41,10 @@ export function Metrics({ isVisible }: MetricsProps) {
 
   if (!isVisible) return null;
 
+  // Use local token counts for immediate feedback, fall back to server data for historical stats
+  const inputTokens = localTokens.in > 0 ? localTokens.in : (metrics.tokensProcessed || 0);
+  const outputTokens = localTokens.out > 0 ? localTokens.out : (metrics.tokensGenerated || 0);
+
   return (
     <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg shadow mb-4">
       <h3 className="text-lg font-semibold mb-2">System Metrics</h3>
@@ -51,11 +56,11 @@ export function Metrics({ isVisible }: MetricsProps) {
         />
         <MetricCard 
           title="Input Tokens" 
-          value={metrics.tokensProcessed?.toLocaleString() || '0'} 
+          value={inputTokens.toLocaleString()} 
         />
         <MetricCard 
           title="Output Tokens" 
-          value={metrics.tokensGenerated.toLocaleString()} 
+          value={outputTokens.toLocaleString()} 
         />
         <MetricCard title="Active Users" value={metrics.activeUsers} />
         <MetricCard 
