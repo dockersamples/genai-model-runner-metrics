@@ -16,11 +16,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   isLoading,
   error,
 }) => {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
+    // When Shift+Enter is pressed, allow default behavior (new line)
   };
 
   return (
@@ -31,15 +32,16 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       }}
       className="p-4 border-t dark:border-gray-800 transition-colors duration-200"
     >
-      <div className="flex gap-2 items-center">
-        <input
-          type="text"
+      <div className="flex gap-2 items-start">
+        <textarea
           value={input}
-          onChange={(e) => setInput((e.target as HTMLInputElement).value)}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message..."
-          className="flex-1 p-3 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+          placeholder="Type a message... (Shift+Enter for new line)"
+          className="flex-1 p-3 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 resize-none min-h-[40px] max-h-[200px] overflow-y-auto"
           disabled={isLoading}
+          rows={1}
+          style={{ height: 'auto', overflow: 'hidden' }}
         />
         <button
           type="submit"
