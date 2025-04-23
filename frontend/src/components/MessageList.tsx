@@ -4,9 +4,10 @@ import { MessageItem } from './MessageItem';
 
 interface MessageListProps {
   messages: Message[];
+  showTokenCount?: boolean;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, showTokenCount = false }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -17,7 +18,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {messages.map((msg) => (
         <div key={msg.id} data-testid={`message-${msg.role}`}>
-          <MessageItem key={msg.id} message={msg} />
+          <MessageItem key={msg.id} message={msg} showTokenCount={showTokenCount} />
         </div>
       ))}
       <div ref={messagesEndRef} />
