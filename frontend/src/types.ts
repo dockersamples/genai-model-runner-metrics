@@ -2,6 +2,10 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  metrics?: {
+    tokensIn?: number;
+    tokensOut?: number;
+  };
 }
 
 // Metrics-related types
@@ -9,6 +13,7 @@ export interface MetricsData {
   totalRequests: number;
   averageResponseTime: number;
   tokensGenerated: number;
+  tokensProcessed?: number; // New field for input tokens
   activeUsers: number;
   errorRate: number;
 }

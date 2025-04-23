@@ -17,6 +17,7 @@ type MetricsSummary struct {
 	TotalRequests      int     `json:"totalRequests"`
 	AverageResponseTime float64 `json:"averageResponseTime"`
 	TokensGenerated    int     `json:"tokensGenerated"`
+	TokensProcessed    int     `json:"tokensProcessed"`
 	ActiveUsers        int     `json:"activeUsers"`
 	ErrorRate          float64 `json:"errorRate"`
 }
@@ -102,12 +103,14 @@ func HandleMetricsSummary() http.HandlerFunc {
 		// Calculate summary metrics
 		totalRequests := len(messageMetrics)
 		var totalResponseTime float64
-		var totalTokens int
+		var totalOutputTokens int
+		var totalInputTokens int
 		var totalErrors int
 
 		for _, metric := range messageMetrics {
 			totalResponseTime += metric.ResponseTimeMs / 1000 // Convert to seconds
-			totalTokens += metric.TokensOut
+			totalOutputTokens += metric.TokensOut
+			totalInputTokens += metric.TokensIn
 		}
 
 		totalErrors = len(errorLogs)
@@ -125,7 +128,8 @@ func HandleMetricsSummary() http.HandlerFunc {
 		summary := MetricsSummary{
 			TotalRequests:      totalRequests,
 			AverageResponseTime: avgResponseTime,
-			TokensGenerated:    totalTokens,
+			TokensGenerated:    totalOutputTokens,
+			TokensProcessed:    totalInputTokens,
 			ActiveUsers:        len(activeUserSessions),
 			ErrorRate:          errorRate,
 		}
