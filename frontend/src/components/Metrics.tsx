@@ -16,24 +16,36 @@ export function Metrics({ isVisible, messages = [] }: MetricsProps) {
     errorRate: 0,
   });
 
-  // Calculate local metrics from messages
-  const calculateLocalMetrics = () => {
+  // Direct token calculation that works regardless of how the metrics are structured
+  const calculateTokens = () => {
     let inputTokens = 0;
     let outputTokens = 0;
-
+    
+    // Loop through all messages and sum up their tokens
     messages.forEach(message => {
-      if (message.role === 'user' && message.metrics?.tokensIn) {
-        inputTokens += message.metrics.tokensIn;
-      }
-      if (message.role === 'assistant' && message.metrics?.tokensOut) {
-        outputTokens += message.metrics.tokensOut;
+      if (message.role === 'user') {
+        // If metrics exist, use them; otherwise estimate
+        if (message.metrics?.tokensIn) {
+          inputTokens += message.metrics.tokensIn;
+        } else {
+          // Estimate tokens (4 chars per token)
+          inputTokens += Math.max(1, Math.ceil(message.content.length / 4));
+        }
+      } else if (message.role === 'assistant') {
+        // If metrics exist, use them; otherwise estimate
+        if (message.metrics?.tokensOut) {
+          outputTokens += message.metrics.tokensOut;
+        } else {
+          // Estimate tokens (4 chars per token)
+          outputTokens += Math.max(1, Math.ceil(message.content.length / 4));
+        }
       }
     });
-
+    
     return { inputTokens, outputTokens };
   };
-
-  const { inputTokens, outputTokens } = calculateLocalMetrics();
+  
+  const { inputTokens, outputTokens } = calculateTokens();
 
   useEffect(() => {
     // Skip fetching if the metrics panel is not visible
@@ -62,7 +74,11 @@ export function Metrics({ isVisible, messages = [] }: MetricsProps) {
   
   // Debug logging
   console.log('Current message metrics:', { inputTokens, outputTokens });
-  console.log('Current messages:', messages);
+  console.log('Messages with metrics:', messages.map(m => ({ 
+    role: m.role, 
+    tokensIn: m.metrics?.tokensIn,
+    tokensOut: m.metrics?.tokensOut 
+  })));
 
   return (
     <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg shadow mb-4">
@@ -75,12 +91,12 @@ export function Metrics({ isVisible, messages = [] }: MetricsProps) {
         />
         <MetricCard 
           title="Input Tokens" 
-          value={inputTokens || 0} 
+          value={inputTokens} 
           highlight={true}
         />
         <MetricCard 
           title="Output Tokens" 
-          value={outputTokens || 0} 
+          value={outputTokens} 
           highlight={true}
         />
         <MetricCard title="Active Users" value={serverMetrics.activeUsers} />
