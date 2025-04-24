@@ -1,5 +1,9 @@
 import React from 'react';
 import { Message } from '../types';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeHighlight from 'rehype-highlight';
 
 interface MessageItemProps {
   message: Message;
@@ -27,12 +31,85 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showTokenCoun
       )}
       <div className="flex flex-col max-w-[75%]">
         <div
-          className={`p-3 rounded-lg whitespace-pre-wrap ${isUser
+          className={`p-3 rounded-lg ${isUser
             ? 'bg-blue-500 text-white rounded-tr-none'
             : 'bg-gray-100 dark:bg-gray-800 dark:text-white rounded-tl-none'
           }`}
         >
-          {message.content}
+          {isUser ? (
+            <div className="whitespace-pre-wrap">{message.content}</div>
+          ) : (
+            <div className="markdown-content">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                components={{
+                  // Customize code blocks
+                  code({ node, inline, className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || '');
+                    return !inline && match ? (
+                      <pre className={`bg-gray-900 dark:bg-gray-950 rounded p-2 my-2 overflow-x-auto`}>
+                        <code className={`language-${match[1]}`} {...props}>
+                          {children}
+                        </code>
+                      </pre>
+                    ) : (
+                      <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded" {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  // Customize links
+                  a({ node, children, href, ...props }) {
+                    return (
+                      <a
+                        href={href}
+                        className="text-blue-400 hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        {...props}
+                      >
+                        {children}
+                      </a>
+                    );
+                  },
+                  // Customize tables
+                  table({ node, children, ...props }) {
+                    return (
+                      <div className="overflow-x-auto my-2">
+                        <table className="border-collapse w-full" {...props}>
+                          {children}
+                        </table>
+                      </div>
+                    );
+                  },
+                  thead({ node, children, ...props }) {
+                    return (
+                      <thead className="bg-gray-200 dark:bg-gray-700" {...props}>
+                        {children}
+                      </thead>
+                    );
+                  },
+                  th({ node, children, ...props }) {
+                    return (
+                      <th className="border border-gray-300 dark:border-gray-600 p-2 text-left" {...props}>
+                        {children}
+                      </th>
+                    );
+                  },
+                  td({ node, children, ...props }) {
+                    return (
+                      <td className="border border-gray-300 dark:border-gray-600 p-2" {...props}>
+                        {children}
+                      </td>
+                    );
+                  }
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
         <div className={`text-xs mt-1 ${isUser ? 'text-right' : 'text-left'} flex items-center ${isUser ? 'justify-end' : 'justify-start'}`}>
           <span className="text-gray-500">{timestamp}</span>
