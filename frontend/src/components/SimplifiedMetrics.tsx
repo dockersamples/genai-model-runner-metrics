@@ -74,7 +74,7 @@ export function SimplifiedMetrics({ isVisible, messages }: SimplifiedMetricsProp
 
   return (
     <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg shadow mb-4">
-      <h3 className="text-lg font-semibold mb-3 text-center">Debug Metrics</h3>
+      <h3 className="text-lg font-semibold mb-3 text-center">Metrics</h3>
       
       {/* Main metrics grid with the most important metrics */}
       <div className="grid grid-cols-2 gap-4 mb-3">
