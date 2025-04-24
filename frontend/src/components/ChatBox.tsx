@@ -273,7 +273,7 @@ export default function ChatBox() {
         </div>
       </div>
       
-      {/* Use the simplified metrics component */}
+      {/* Only use the simplified metrics component with the renamed heading */}
       {showMetrics && <SimplifiedMetrics isVisible={showMetrics} messages={messages} />}
       
       <MessageList messages={messages} showTokenCount={true} />
