@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Message, MessageMetrics, ModelMetadata } from '../types';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
-import { Metrics } from './Metrics';
-import { DebugMetrics } from './DebugMetrics';
+import { SimplifiedMetrics } from './SimplifiedMetrics';
 
 export default function ChatBox() {
   const [input, setInput] = useState('');
@@ -274,11 +273,8 @@ export default function ChatBox() {
         </div>
       </div>
       
-      {/* Add debug metrics component above the regular metrics */}
-      {showMetrics && <DebugMetrics messages={messages} />}
-      
-      {/* Original metrics component */}
-      {showMetrics && <Metrics isVisible={showMetrics} />}
+      {/* Use the simplified metrics component */}
+      {showMetrics && <SimplifiedMetrics isVisible={showMetrics} messages={messages} />}
       
       <MessageList messages={messages} showTokenCount={true} />
       <MessageInput
