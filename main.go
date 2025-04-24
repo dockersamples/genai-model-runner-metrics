@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +35,7 @@ type Message struct {
 type ChatRequest struct {
 	Messages []Message `json:"messages"`
 	Message  string    `json:"message"`
+	Format   string    `json:"format,omitempty"` // Optional format parameter
 }
 
 type MetricLog struct {
@@ -447,8 +449,30 @@ func handleChat(client *openai.Client, model string) http.HandlerFunc {
 			messages = append(messages, message)
 		}
 
+		// Check if the user is requesting markdown output
+		useMarkdown := false
+		userMessage := req.Message
+		
+		// Format can be explicitly set in the request
+		if req.Format == "markdown" {
+			useMarkdown = true
+		}
+		
+		// Or it can be detected from the message
+		if strings.Contains(strings.ToLower(userMessage), "in markdown") ||
+		   strings.Contains(strings.ToLower(userMessage), "using markdown") {
+			useMarkdown = true
+		}
+		
+		// If markdown is requested, modify the system prompt
+		if useMarkdown {
+			// Prepend a system message to request markdown formatting
+			systemMsg := openai.SystemMessage("Please format your response using markdown. Use proper headings, bullet points, numbered lists, code blocks with syntax highlighting, and tables where appropriate.")
+			messages = append([]openai.ChatCompletionMessageParamUnion{systemMsg}, messages...)
+		}
+
 		// Add the user message to the conversation
-		messages = append(messages, openai.UserMessage(req.Message))
+		messages = append(messages, openai.UserMessage(userMessage))
 		
 		param := openai.ChatCompletionNewParams{
 			Messages: openai.F(messages),
