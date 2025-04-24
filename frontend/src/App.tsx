@@ -5,23 +5,59 @@ import { Header } from './components/Header.tsx';
 import { ModelMetadata } from './types';
 
 function App() {
-  const [darkMode, setDarkMode] = useState(false);
+  // Initialize darkMode from localStorage or system preference
+  const [darkMode, setDarkMode] = useState(() => {
+    const savedDarkMode = localStorage.getItem('darkMode');
+    
+    // If we have a saved preference, use it
+    if (savedDarkMode !== null) {
+      return savedDarkMode === 'true';
+    }
+    
+    // Otherwise, check system preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+  
   const [modelInfo, setModelInfo] = useState<ModelMetadata | null>(null);
 
+  // Listen for changes to system preference
   useEffect(() => {
-    // Check for user preference
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setDarkMode(isDark);
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     
-    // Fetch model information
+    const handleChange = (e: MediaQueryListEvent) => {
+      // Only update if user hasn't explicitly set a preference
+      if (localStorage.getItem('darkMode') === null) {
+        setDarkMode(e.matches);
+      }
+    };
+    
+    // Some browsers use addEventListener, some use addListener
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    } else {
+      // @ts-ignore - For older browsers
+      mediaQuery.addListener(handleChange);
+      return () => {
+        // @ts-ignore - For older browsers
+        mediaQuery.removeListener(handleChange);
+      };
+    }
+  }, []);
+
+  // Fetch model information on component mount
+  useEffect(() => {
     fetchModelInfo();
   }, []);
 
+  // Apply dark mode class when darkMode state changes
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('darkMode', 'true');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('darkMode', 'false');
     }
   }, [darkMode]);
 
@@ -40,7 +76,7 @@ function App() {
   };
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
+    setDarkMode(prevMode => !prevMode);
   };
 
   // Format the model name for display
@@ -53,7 +89,7 @@ function App() {
     let modelSize = "";
     
     // Try to extract size information (like 1B, 7B, etc.)
-    const sizeMatch = modelName.match(/[:\-](\d+[bB])/);
+    const sizeMatch = modelName.match(/[:\-](\\d+[bB])/);
     if (sizeMatch && sizeMatch[1]) {
       modelSize = `(${sizeMatch[1].toUpperCase()})`;
     }
@@ -69,8 +105,8 @@ function App() {
     
     // Clean up common model name formats
     modelName = modelName
-      .replace(/\.(\d)/g, ' $1')  // Add space before version numbers
-      .replace(/([a-z])(\d)/gi, '$1 $2')  // Add space between letters and numbers
+      .replace(/\\.(\\d)/g, ' $1')  // Add space before version numbers
+      .replace(/([a-z])(\\d)/gi, '$1 $2')  // Add space between letters and numbers
       .replace(/llama/i, 'Llama')  // Capitalize model names
       .replace(/smollm/i, 'SmolLM');
     
