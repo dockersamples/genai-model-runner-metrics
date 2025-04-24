@@ -15,6 +15,9 @@ export function SimplifiedMetrics({ isVisible, messages }: SimplifiedMetricsProp
     activeUsers: 0,
     errorRate: 0,
   });
+  
+  // State to track if metrics are expanded or collapsed
+  const [expanded, setExpanded] = useState(false);
 
   // Direct token calculation that works regardless of how the metrics are structured
   const calculateTokens = () => {
@@ -72,38 +75,94 @@ export function SimplifiedMetrics({ isVisible, messages }: SimplifiedMetricsProp
 
   if (!isVisible) return null;
 
-  return (
-    <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg shadow mb-4">
-      <h3 className="text-lg font-semibold mb-3 text-center">Metrics</h3>
-      
-      {/* Main metrics grid with the most important metrics */}
-      <div className="grid grid-cols-2 gap-4 mb-3">
-        {/* Input Tokens */}
-        <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded text-center">
-          <div className="text-sm font-semibold text-blue-800 dark:text-blue-200">Input Tokens</div>
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-300">{inputTokens}</div>
+  // Compact view (collapsed state)
+  if (!expanded) {
+    return (
+      <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-lg shadow mb-2 transition-all duration-200">
+        <div className="flex justify-between items-center">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Metrics</h3>
+          <button 
+            onClick={() => setExpanded(true)} 
+            className="text-blue-500 hover:text-blue-700 dark:text-blue-400 text-xs px-2"
+          >
+            Expand
+          </button>
         </div>
         
-        {/* Output Tokens */}
-        <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded text-center">
-          <div className="text-sm font-semibold text-green-800 dark:text-green-200">Output Tokens</div>
-          <div className="text-2xl font-bold text-green-600 dark:text-green-300">{outputTokens}</div>
+        {/* Simplified metrics row */}
+        <div className="flex justify-between items-center text-xs my-1">
+          <div className="flex items-center space-x-3">
+            <span className="bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 rounded text-blue-800 dark:text-blue-300">
+              In: {inputTokens}
+            </span>
+            <span className="bg-green-100 dark:bg-green-900/40 px-2 py-0.5 rounded text-green-800 dark:text-green-300">
+              Out: {outputTokens}
+            </span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <span className="text-gray-600 dark:text-gray-400">
+              Reqs: {serverMetrics.totalRequests}
+            </span>
+            <span className="text-gray-600 dark:text-gray-400">
+              Avg: {serverMetrics.averageResponseTime.toFixed(2)}s
+            </span>
+          </div>
+        </div>
+        
+        {/* Link to detailed dashboard */}
+        <div className="text-right text-xs text-gray-500 dark:text-gray-400">
+          <a 
+            href="http://localhost:3001" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="hover:underline hover:text-blue-500"
+          >
+            Detailed Dashboard
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // Expanded view
+  return (
+    <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg shadow mb-3 transition-all duration-200">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Metrics</h3>
+        <button 
+          onClick={() => setExpanded(false)} 
+          className="text-blue-500 hover:text-blue-700 dark:text-blue-400 text-xs px-2"
+        >
+          Collapse
+        </button>
+      </div>
+      
+      {/* Main metrics in a more compact horizontal layout */}
+      <div className="flex justify-between mb-2">
+        <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded text-center flex-1 mr-2">
+          <div className="text-xs font-semibold text-blue-800 dark:text-blue-200">Input Tokens</div>
+          <div className="text-lg font-bold text-blue-600 dark:text-blue-300">{inputTokens}</div>
+        </div>
+        
+        <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded text-center flex-1">
+          <div className="text-xs font-semibold text-green-800 dark:text-green-200">Output Tokens</div>
+          <div className="text-lg font-bold text-green-600 dark:text-green-300">{outputTokens}</div>
         </div>
       </div>
       
-      {/* Additional system metrics in a more compact format */}
-      <div className="grid grid-cols-3 gap-2 text-center text-sm">
-        <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded">
+      {/* Secondary metrics in a compact row */}
+      <div className="grid grid-cols-3 gap-2 text-center text-xs">
+        <div className="bg-gray-200 dark:bg-gray-700 p-1.5 rounded">
           <div className="text-gray-600 dark:text-gray-300 text-xs">Total Requests</div>
           <div className="font-medium">{serverMetrics.totalRequests}</div>
         </div>
         
-        <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded">
-          <div className="text-gray-600 dark:text-gray-300 text-xs">Avg Response Time</div>
+        <div className="bg-gray-200 dark:bg-gray-700 p-1.5 rounded">
+          <div className="text-gray-600 dark:text-gray-300 text-xs">Avg Response</div>
           <div className="font-medium">{serverMetrics.averageResponseTime.toFixed(2)}s</div>
         </div>
         
-        <div className="bg-gray-200 dark:bg-gray-700 p-2 rounded">
+        <div className="bg-gray-200 dark:bg-gray-700 p-1.5 rounded">
           <div className="text-gray-600 dark:text-gray-300 text-xs">Error Rate</div>
           <div className={`font-medium ${serverMetrics.errorRate > 0.05 ? 'text-red-500' : ''}`}>
             {(serverMetrics.errorRate * 100).toFixed(2)}%
@@ -111,15 +170,15 @@ export function SimplifiedMetrics({ isVisible, messages }: SimplifiedMetricsProp
         </div>
       </div>
       
-      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-        <p>Direct token calculation (4 chars = 1 token)</p>
+      <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 flex justify-between items-center">
+        <span>Token calc: 4 chars = 1 token</span>
         <a 
           href="http://localhost:3001" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="mt-2 inline-block underline hover:text-blue-500"
+          className="hover:underline hover:text-blue-500"
         >
-          View detailed metrics dashboard
+          View detailed dashboard
         </a>
       </div>
     </div>
