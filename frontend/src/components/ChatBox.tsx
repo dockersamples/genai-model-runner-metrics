@@ -244,11 +244,41 @@ export default function ChatBox() {
     setShowMetrics(!showMetrics);
   };
 
+  // Get the model name for display
+  const getModelDisplayName = () => {
+    if (!modelInfo || !modelInfo.model) {
+      return "AI Assistant";  // Default fallback
+    }
+    
+    // Clean up model name for display (e.g., "ai/llama3.2:1b" becomes "Llama 3.2")
+    let displayName = modelInfo.model;
+    
+    // Extract the model name from potential paths or prefixes
+    if (displayName.includes('/')) {
+      displayName = displayName.split('/').pop() || displayName;
+    }
+    
+    // Remove version tags if present
+    if (displayName.includes(':')) {
+      displayName = displayName.split(':')[0];
+    }
+    
+    // Clean up common model name formats
+    displayName = displayName
+      .replace(/\.(\d)/g, ' $1')  // Add space before version numbers
+      .replace(/([a-z])(\d)/gi, '$1 $2')  // Add space between letters and numbers
+      .replace(/llama/i, 'Llama')  // Capitalize model names
+      .replace(/smollm/i, 'SmolLM');
+    
+    // Return the cleaned model name
+    return displayName;
+  };
+
   return (
     <div className="flex flex-col w-full max-w-3xl mx-auto h-[calc(100vh-180px)] rounded-lg shadow-lg border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden transition-colors duration-200">
       <div className="flex items-center justify-between p-4 border-b dark:border-gray-800">
         <div className="flex items-center space-x-2">
-          <h2 className="text-lg font-semibold">Chat with Llama 3.2</h2>
+          <h2 className="text-lg font-semibold">Chat with {getModelDisplayName()}</h2>
           {modelInfo && (
             <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
               {modelInfo.model}
