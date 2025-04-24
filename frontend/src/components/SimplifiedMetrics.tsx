@@ -112,7 +112,15 @@ export function SimplifiedMetrics({ isVisible, messages }: SimplifiedMetricsProp
       </div>
       
       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-        Direct token calculation (4 chars = 1 token)
+        <p>Direct token calculation (4 chars = 1 token)</p>
+        <a 
+          href="http://localhost:3001" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="mt-2 inline-block underline hover:text-blue-500"
+        >
+          View detailed metrics dashboard
+        </a>
       </div>
     </div>
   );
