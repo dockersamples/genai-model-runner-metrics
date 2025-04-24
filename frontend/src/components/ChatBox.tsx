@@ -265,8 +265,8 @@ export default function ChatBox() {
     
     // Clean up common model name formats
     displayName = displayName
-      .replace(/\.(\d)/g, ' $1')  // Add space before version numbers
-      .replace(/([a-z])(\d)/gi, '$1 $2')  // Add space between letters and numbers
+      .replace(/\.(\\d)/g, ' $1')  // Add space before version numbers
+      .replace(/([a-z])(\\d)/gi, '$1 $2')  // Add space between letters and numbers
       .replace(/llama/i, 'Llama')  // Capitalize model names
       .replace(/smollm/i, 'SmolLM');
     
@@ -276,11 +276,11 @@ export default function ChatBox() {
 
   return (
     <div className="flex flex-col w-full max-w-3xl mx-auto h-[calc(100vh-180px)] rounded-lg shadow-lg border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden transition-colors duration-200">
-      <div className="flex items-center justify-between p-4 border-b dark:border-gray-800">
+      <div className="flex items-center justify-between p-3 border-b dark:border-gray-800">
         <div className="flex items-center space-x-2">
           <h2 className="text-lg font-semibold">Chat with {getModelDisplayName()}</h2>
           {modelInfo && (
-            <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+            <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded">
               {modelInfo.model}
             </span>
           )}
@@ -288,25 +288,31 @@ export default function ChatBox() {
         <div className="flex space-x-2">
           <button
             onClick={toggleMetrics}
-            className="text-sm px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            aria-label={showMetrics ? 'Hide Metrics' : 'Show Metrics'}
           >
             {showMetrics ? 'Hide Metrics' : 'Show Metrics'}
           </button>
           {messages.length > 0 && (
             <button
               onClick={clearConversation}
-              className="text-sm text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 transition-colors duration-200"
+              className="text-xs text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 transition-colors duration-200 px-2 py-1"
+              aria-label="Clear conversation"
             >
-              Clear conversation
+              Clear
             </button>
           )}
         </div>
       </div>
       
-      {/* Only use the simplified metrics component with the renamed heading */}
+      {/* Use the simplified metrics component with collapsed/expandable functionality */}
       {showMetrics && <SimplifiedMetrics isVisible={showMetrics} messages={messages} />}
       
-      <MessageList messages={messages} showTokenCount={true} />
+      {/* Add max-height and overflow to make message list scrollable but not take up entire screen */}
+      <div className="flex-1 overflow-y-auto">
+        <MessageList messages={messages} showTokenCount={true} />
+      </div>
+      
       <MessageInput
         input={input}
         setInput={setInput}
