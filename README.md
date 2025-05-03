@@ -206,6 +206,31 @@ The project includes comprehensive observability features:
 
 For more information, see [Observability Documentation](./observability/README.md).
 
+## llama.cpp Metrics Integration
+
+The application has been enhanced with specific metrics for llama.cpp models:
+
+1. **Backend Integration**: The Go backend collects and exposes llama.cpp-specific metrics:
+   - Context window size tracking
+   - Memory per token measurement
+   - Token generation speed calculations
+   - Thread utilization monitoring
+   - Prompt evaluation timing
+   - Batch size tracking
+
+2. **Frontend Dashboard**: A dedicated metrics panel in the UI shows:
+   - Real-time token generation speed
+   - Memory efficiency
+   - Thread utilization with recommendations
+   - Context window size visualization
+   - Expandable detailed metrics view
+   - Integration with model info panel
+
+3. **Prometheus Integration**: All llama.cpp metrics are exposed to Prometheus for long-term storage and analysis:
+   - Custom histograms for timing metrics
+   - Gauges for resource utilization
+   - Counters for token throughput
+
 ## Customization
 
 You can customize the application by:
@@ -213,7 +238,7 @@ You can customize the application by:
 2. Modifying the frontend components for a different UI experience
 3. Extending the backend API with additional functionality
 4. Customizing the Grafana dashboards for different metrics
-5. Adjusting the llama.cpp metrics display in the UI
+5. Adjusting llama.cpp parameters for performance optimization
 
 ## Testing
 
@@ -224,31 +249,13 @@ cd tests
 go test -v
 ```
 
-## Advanced llama.cpp Metrics Configuration
-
-The llama.cpp metrics integration provides insights into the performance of the model. These metrics can be used to:
-
-1. **Optimize Thread Count**: Find the optimal number of threads for your hardware by watching the tokens/sec metric
-2. **Balance Memory Usage**: Monitor memory per token to ensure efficient resource utilization
-3. **Tune Batch Size**: Adjust batch size settings based on performance metrics
-4. **Context Window Analysis**: Understand how context window size affects performance and memory usage
-
-To enable more detailed llama.cpp metrics, update the backend.env file:
-
-```
-# Additional llama.cpp metrics settings
-LLAMACPP_METRICS_ENABLED=true
-LLAMACPP_MEMORY_TRACKING=true
-LLAMACPP_DETAILED_TIMING=true
-```
-
 ## Troubleshooting
 
 - **Model not loading**: Ensure you've pulled the model with `docker model pull`
 - **Connection errors**: Verify Docker network settings and that Model Runner is running
 - **Streaming issues**: Check CORS settings in the backend code
 - **Metrics not showing**: Verify that Prometheus can reach the backend metrics endpoint
-- **llama.cpp metrics not appearing**: Ensure you're using a llama.cpp model with Docker Model Runner
+- **llama.cpp metrics missing**: Confirm that your model is indeed a llama.cpp model
 
 ## License
 
