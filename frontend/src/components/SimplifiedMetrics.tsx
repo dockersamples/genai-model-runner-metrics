@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Message, MetricsData, LlamaCppMetrics } from '../types';
+import { LlamaCppMetricsPanel } from './LlamaCppMetricsPanel';
 
 interface SimplifiedMetricsProps {
   isVisible: boolean;
@@ -124,7 +125,7 @@ export function SimplifiedMetrics({ isVisible, messages }: SimplifiedMetricsProp
                 Tokens/sec: {serverMetrics.llamaCppMetrics?.tokensPerSecond.toFixed(2)}
               </span>
               <span>
-                Context: {serverMetrics.llamaCppMetrics?.contextSize}
+                Context: {serverMetrics.llamaCppMetrics?.contextSize.toLocaleString()}
               </span>
             </div>
           </div>
@@ -193,66 +194,42 @@ export function SimplifiedMetrics({ isVisible, messages }: SimplifiedMetricsProp
         </div>
       </div>
       
-      {/* llama.cpp metrics section if available */}
+      {/* Display llama.cpp metrics using the dedicated component */}
       {hasLlamaCppMetrics && (
-        <div className="mt-2 bg-blue-50 dark:bg-blue-950/30 rounded p-2">
+        <div className="mt-2">
           <div className="flex justify-between items-center mb-1">
             <div className="text-sm font-medium text-blue-800 dark:text-blue-300">llama.cpp Metrics</div>
             <button
               onClick={() => setLlamaExpanded(!llamaExpanded)}
               className="text-xs text-blue-600 dark:text-blue-400"
             >
-              {llamaExpanded ? 'Less' : 'More'}
+              {llamaExpanded ? 'Collapse' : 'Expand'}
             </button>
           </div>
           
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded">
-              <div className="text-blue-700 dark:text-blue-300">Tokens/sec</div>
-              <div className="font-medium text-blue-800 dark:text-blue-200">
-                {serverMetrics.llamaCppMetrics?.tokensPerSecond.toFixed(2)}
-              </div>
-            </div>
-            
-            <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded">
-              <div className="text-blue-700 dark:text-blue-300">Context Size</div>
-              <div className="font-medium text-blue-800 dark:text-blue-200">
-                {serverMetrics.llamaCppMetrics?.contextSize}
-              </div>
-            </div>
-          </div>
-          
-          {/* Additional llama.cpp metrics shown when expanded */}
-          {llamaExpanded && (
-            <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+          {!llamaExpanded ? (
+            // Simple view
+            <div className="grid grid-cols-2 gap-2 text-xs bg-blue-50 dark:bg-blue-950/30 p-2 rounded">
               <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded">
-                <div className="text-blue-700 dark:text-blue-300">Prompt Eval</div>
+                <div className="text-blue-700 dark:text-blue-300">Tokens/sec</div>
                 <div className="font-medium text-blue-800 dark:text-blue-200">
-                  {serverMetrics.llamaCppMetrics?.promptEvalTime.toFixed(0)}ms
+                  {serverMetrics.llamaCppMetrics?.tokensPerSecond.toFixed(2)}
                 </div>
               </div>
               
               <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded">
-                <div className="text-blue-700 dark:text-blue-300">Threads</div>
+                <div className="text-blue-700 dark:text-blue-300">Context Size</div>
                 <div className="font-medium text-blue-800 dark:text-blue-200">
-                  {serverMetrics.llamaCppMetrics?.threadsUsed}
-                </div>
-              </div>
-              
-              <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded">
-                <div className="text-blue-700 dark:text-blue-300">Batch Size</div>
-                <div className="font-medium text-blue-800 dark:text-blue-200">
-                  {serverMetrics.llamaCppMetrics?.batchSize}
-                </div>
-              </div>
-              
-              <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded col-span-3">
-                <div className="text-blue-700 dark:text-blue-300">Memory Per Token</div>
-                <div className="font-medium text-blue-800 dark:text-blue-200">
-                  {(serverMetrics.llamaCppMetrics?.memoryPerToken / 1024 / 1024).toFixed(2)} MB
+                  {serverMetrics.llamaCppMetrics?.contextSize.toLocaleString()}
                 </div>
               </div>
             </div>
+          ) : (
+            // Detailed panel view
+            <LlamaCppMetricsPanel 
+              metrics={serverMetrics.llamaCppMetrics as LlamaCppMetrics} 
+              showTitle={false} 
+            />
           )}
         </div>
       )}
