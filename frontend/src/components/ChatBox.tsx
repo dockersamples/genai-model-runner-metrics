@@ -3,6 +3,7 @@ import { Message, MessageMetrics, ModelMetadata } from '../types';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { SimplifiedMetrics } from './SimplifiedMetrics';
+import { ModelInfoCard } from './ModelInfoCard';
 
 export default function ChatBox() {
   const [input, setInput] = useState('');
@@ -10,6 +11,7 @@ export default function ChatBox() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showMetrics, setShowMetrics] = useState(true); // Default to true to show metrics
+  const [showModelInfo, setShowModelInfo] = useState(false); // Toggle for model info panel
   const [messageMetrics, setMessageMetrics] = useState<Record<string, MessageMetrics>>({});
   const [modelInfo, setModelInfo] = useState<ModelMetadata | null>(null);
 
@@ -244,45 +246,23 @@ export default function ChatBox() {
     setShowMetrics(!showMetrics);
   };
 
-  // Get the model name for display
-  const getModelDisplayName = () => {
-    if (!modelInfo || !modelInfo.model) {
-      return "AI Assistant";  // Default fallback
-    }
-    
-    // Clean up model name for display (e.g., "ai/llama3.2:1b" becomes "Llama 3.2")
-    let displayName = modelInfo.model;
-    
-    // Extract the model name from potential paths or prefixes
-    if (displayName.includes('/')) {
-      displayName = displayName.split('/').pop() || displayName;
-    }
-    
-    // Remove version tags if present
-    if (displayName.includes(':')) {
-      displayName = displayName.split(':')[0];
-    }
-    
-    // Clean up common model name formats
-    displayName = displayName
-      .replace(/\.(\\d)/g, ' $1')  // Add space before version numbers
-      .replace(/([a-z])(\\d)/gi, '$1 $2')  // Add space between letters and numbers
-      .replace(/llama/i, 'Llama')  // Capitalize model names
-      .replace(/smollm/i, 'SmolLM');
-    
-    // Return the cleaned model name
-    return displayName;
+  const toggleModelInfo = () => {
+    setShowModelInfo(!showModelInfo);
   };
 
   return (
     <div className="flex flex-col w-full max-w-3xl mx-auto h-[calc(100vh-180px)] rounded-lg shadow-lg border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden transition-colors duration-200">
       <div className="flex items-center justify-between p-3 border-b dark:border-gray-800">
         <div className="flex items-center space-x-2">
-          <h2 className="text-lg font-semibold">Chat with {getModelDisplayName()}</h2>
-          {modelInfo && (
-            <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded">
-              {modelInfo.model}
-            </span>
+          {modelInfo ? (
+            <div className="flex items-center cursor-pointer" onClick={toggleModelInfo}>
+              <ModelInfoCard modelInfo={modelInfo} isMinimized={true} />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showModelInfo ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"} />
+              </svg>
+            </div>
+          ) : (
+            <h2 className="text-lg font-semibold">Chat</h2>
           )}
         </div>
         <div className="flex space-x-2">
@@ -304,6 +284,13 @@ export default function ChatBox() {
           )}
         </div>
       </div>
+      
+      {/* Show model info card when expanded */}
+      {showModelInfo && modelInfo && (
+        <div className="px-3 pt-2">
+          <ModelInfoCard modelInfo={modelInfo} />
+        </div>
+      )}
       
       {/* Use the simplified metrics component with collapsed/expandable functionality */}
       {showMetrics && <SimplifiedMetrics isVisible={showMetrics} messages={messages} />}
