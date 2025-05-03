@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
-import ChatBox from './components/ChatBox.tsx';
-import { Header } from './components/Header.tsx';
+import { ChatBox, Header } from './components';
 import { ModelMetadata } from './types';
 
 function App() {
@@ -79,39 +78,10 @@ function App() {
     setDarkMode(prevMode => !prevMode);
   };
 
-  // Format the model name for display
-  const getModelDisplayInfo = () => {
-    if (!modelInfo || !modelInfo.model) {
-      return "AI Model";  // Default fallback
-    }
-    
-    let modelName = modelInfo.model;
-    let modelSize = "";
-    
-    // Try to extract size information (like 1B, 7B, etc.)
-    const sizeMatch = modelName.match(/[:\-](\\d+[bB])/);
-    if (sizeMatch && sizeMatch[1]) {
-      modelSize = `(${sizeMatch[1].toUpperCase()})`;
-    }
-    
-    // Extract base model name
-    if (modelName.includes('/')) {
-      modelName = modelName.split('/').pop() || modelName;
-    }
-    
-    if (modelName.includes(':')) {
-      modelName = modelName.split(':')[0];
-    }
-    
-    // Clean up common model name formats
-    modelName = modelName
-      .replace(/\\.(\\d)/g, ' $1')  // Add space before version numbers
-      .replace(/([a-z])(\\d)/gi, '$1 $2')  // Add space between letters and numbers
-      .replace(/llama/i, 'Llama')  // Capitalize model names
-      .replace(/smollm/i, 'SmolLM');
-    
-    return `${modelName} ${modelSize}`;
-  };
+  // Check if this is a llama.cpp model
+  const isLlamaCppModel = 
+    modelInfo?.modelType === 'llama.cpp' || 
+    modelInfo?.model?.toLowerCase().includes('llama');
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 dark:text-white transition-colors duration-200">
@@ -120,7 +90,15 @@ function App() {
         <ChatBox />
       </div>
       <footer className="text-center p-4 text-sm text-gray-500 dark:text-gray-400">
-        <p>Powered by <span className="font-semibold">Docker Model Runner</span> running <span className="font-semibold">{getModelDisplayInfo()}</span> in a Docker container</p>
+        <p>
+          Powered by <span className="font-semibold">Docker Model Runner</span>
+          {modelInfo && (
+            <> running <span className="font-semibold">{modelInfo.model}</span></>
+          )}
+          {isLlamaCppModel && (
+            <> with <span className="text-blue-500 font-semibold">llama.cpp</span> metrics</>
+          )}
+        </p>
       </footer>
     </div>
   );
