@@ -20,7 +20,7 @@ export function MessageList({ messages, showTokenCount = false }: MessageListPro
         </div>
       ) : (
         messages.map((message) => (
-          <Message
+          <MessageItem
             key={message.id}
             message={message}
             showTokenCount={showTokenCount}
@@ -31,12 +31,12 @@ export function MessageList({ messages, showTokenCount = false }: MessageListPro
   );
 }
 
-interface MessageProps {
+interface MessageItemProps {
   message: Message;
   showTokenCount: boolean;
 }
 
-function Message({ message, showTokenCount }: MessageProps) {
+function MessageItem({ message, showTokenCount }: MessageItemProps) {
   const isUser = message.role === 'user';
   
   // Format token counts for display
