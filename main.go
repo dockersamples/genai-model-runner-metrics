@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ajeetraina/genai-app-demo/pkg/metrics"
 	"github.com/ajeetraina/genai-app-demo/pkg/middleware"
 	"github.com/ajeetraina/genai-app-demo/pkg/tracing"
 	"github.com/prometheus/client_golang/prometheus"
@@ -250,6 +249,28 @@ func getGaugeValueWithLabels(gauge *prometheus.GaugeVec, labelValues ...string) 
 	return 0.0
 }
 
+// Helper function to get histogram value with labels
+func getHistogramValueWithLabels(histogram *prometheus.HistogramVec, labelValues ...string) float64 {
+    if len(labelValues) == 0 {
+        return 0.0
+    }
+    
+    h, err := histogram.GetMetricWithLabelValues(labelValues...)
+    if err != nil {
+        return 0.0
+    }
+    
+    // For histograms, we can get the sum and count to calculate an average
+    metric := &dto.Metric{}
+    if err := h.(prometheus.Metric).Write(metric); err == nil && metric.Histogram != nil {
+        if metric.Histogram.GetSampleCount() > 0 {
+            return metric.Histogram.GetSampleSum() / float64(metric.Histogram.GetSampleCount())
+        }
+    }
+    
+    return 0.0
+}
+
 // Helper function to calculate error rate
 func calculateErrorRate() float64 {
 	totalErrors := getCounterValue(errorCounter)
@@ -280,7 +301,7 @@ func getLlamaCppMetrics(model string) *LlamaCppMetrics {
 	// Collect all metrics
 	return &LlamaCppMetrics{
 		ContextSize:     contextSize,
-		PromptEvalTime:  getGaugeValueWithLabels(llamacppPromptEvalTime, model) * 1000, // Convert to ms
+		PromptEvalTime:  getHistogramValueWithLabels(llamacppPromptEvalTime, model) * 1000, // Convert to ms
 		TokensPerSecond: getGaugeValueWithLabels(llamacppTokensPerSecond, model),
 		MemoryPerToken:  getGaugeValueWithLabels(llamacppMemoryPerToken, model),
 		ThreadsUsed:     int(getGaugeValueWithLabels(llamacppThreadsUsed, model)),
@@ -506,7 +527,7 @@ func main() {
 	})
 
 	// Add chat endpoint with advanced tracing
-	mux.HandleFunc("/chat", handleChat(client, model))
+	mux.HandleFunc("/chat", handleChat(client, model, baseURL))
 
 	// Create HTTP server
 	server := &http.Server{
@@ -568,7 +589,7 @@ func getEnvOrDefault(key, defaultValue string) string {
 }
 
 // handleChat handles the chat endpoint with simple tracing
-func handleChat(client *openai.Client, model string) http.HandlerFunc {
+func handleChat(client *openai.Client, model string, apiBaseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -672,7 +693,7 @@ func handleChat(client *openai.Client, model string) http.HandlerFunc {
 				
 				// For llama.cpp, record prompt evaluation time
 				if strings.Contains(strings.ToLower(model), "llama") || 
-				   strings.Contains(baseURL, "llama.cpp") {
+				   strings.Contains(apiBaseURL, "llama.cpp") {
 					promptEvalTime := firstTokenTime.Sub(promptEvalStartTime)
 					llamacppPromptEvalTime.WithLabelValues(model).Observe(promptEvalTime.Seconds())
 				}
@@ -692,7 +713,7 @@ func handleChat(client *openai.Client, model string) http.HandlerFunc {
 
 		// Calculate tokens per second for llama.cpp metrics
 		if strings.Contains(strings.ToLower(model), "llama") || 
-		   strings.Contains(baseURL, "llama.cpp") {
+		   strings.Contains(apiBaseURL, "llama.cpp") {
 			totalTime := time.Since(firstTokenTime).Seconds()
 			if totalTime > 0 && outputTokens > 0 {
 				tokensPerSecond := float64(outputTokens) / totalTime
