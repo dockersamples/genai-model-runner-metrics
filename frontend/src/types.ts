@@ -8,6 +8,17 @@ export interface Message {
   };
 }
 
+// LlamaCpp metrics interface
+export interface LlamaCppMetrics {
+  contextSize: number;
+  promptEvalTime: number;
+  tokensPerSecond: number;
+  memoryPerToken: number;
+  threadsUsed: number;
+  batchSize: number;
+  modelType: string;
+}
+
 // Metrics-related types
 export interface MetricsData {
   totalRequests: number;
@@ -16,6 +27,7 @@ export interface MetricsData {
   tokensProcessed?: number; // New field for input tokens
   activeUsers: number;
   errorRate: number;
+  llamaCppMetrics?: LlamaCppMetrics; // Added llama.cpp metrics
 }
 
 export interface MessageMetrics {
@@ -28,6 +40,7 @@ export interface MessageMetrics {
 
 export interface ModelMetadata {
   model: string;
-  contextWindow: number;
+  contextWindow?: number;
+  modelType?: string;
   parameters?: string;
 }
