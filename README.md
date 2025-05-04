@@ -12,6 +12,7 @@ This project showcases a complete Generative AI interface that includes:
 - Go backend server for API handling
 - Integration with Docker's Model Runner to run Llama 3.2 locally
 - Comprehensive observability with metrics, logging, and tracing
+- **NEW: llama.cpp metrics integration directly in the UI**
 
 ## Features
 
@@ -26,6 +27,7 @@ This project showcases a complete Generative AI interface that includes:
 - 📝 Structured logging with zerolog
 - 🔍 Distributed tracing with OpenTelemetry
 - 📈 Grafana dashboards for visualization
+- 🚀 Advanced llama.cpp performance metrics
 
 <img width="1126" alt="image" src="https://github.com/user-attachments/assets/bccb9f93-1f6e-4397-a3ce-8a15370490d9" />
 
@@ -95,7 +97,7 @@ docker model pull ai/llama3.2:1B-Q8_0
 4. Access observability dashboards:
    - Grafana: [http://localhost:3001](http://localhost:3001) (admin/admin)
   
-Ensure that you provide `http://prometheus:9090` instead of `localhost:9090` to seee the metrics on the Grafana dashboard.
+Ensure that you provide `http://prometheus:9090` instead of `localhost:9090` to see the metrics on the Grafana dashboard.
 
    - Jaeger UI: [http://localhost:16686](http://localhost:16686)
    - Prometheus: [http://localhost:9091](http://localhost:9091)
@@ -164,6 +166,19 @@ Make sure to set the required environment variables from `backend.env`:
 └── ...
 ```
 
+## llama.cpp Metrics Features
+
+The application includes detailed llama.cpp metrics displayed directly in the UI:
+
+- **Tokens per Second**: Real-time generation speed
+- **Context Window Size**: Maximum tokens the model can process
+- **Prompt Evaluation Time**: Time spent processing the input prompt
+- **Memory per Token**: Memory usage efficiency
+- **Thread Utilization**: Number of threads used for inference
+- **Batch Size**: Inference batch size
+
+These metrics help in understanding the performance characteristics of llama.cpp models and can be used to optimize configurations.
+
 ## Observability Features
 
 The project includes comprehensive observability features:
@@ -174,6 +189,7 @@ The project includes comprehensive observability features:
 - Token usage (input and output counts)
 - Request rates and error rates
 - Active request monitoring
+- llama.cpp specific performance metrics
 
 ### Logging
 
@@ -190,6 +206,31 @@ The project includes comprehensive observability features:
 
 For more information, see [Observability Documentation](./observability/README.md).
 
+## llama.cpp Metrics Integration
+
+The application has been enhanced with specific metrics for llama.cpp models:
+
+1. **Backend Integration**: The Go backend collects and exposes llama.cpp-specific metrics:
+   - Context window size tracking
+   - Memory per token measurement
+   - Token generation speed calculations
+   - Thread utilization monitoring
+   - Prompt evaluation timing
+   - Batch size tracking
+
+2. **Frontend Dashboard**: A dedicated metrics panel in the UI shows:
+   - Real-time token generation speed
+   - Memory efficiency
+   - Thread utilization with recommendations
+   - Context window size visualization
+   - Expandable detailed metrics view
+   - Integration with model info panel
+
+3. **Prometheus Integration**: All llama.cpp metrics are exposed to Prometheus for long-term storage and analysis:
+   - Custom histograms for timing metrics
+   - Gauges for resource utilization
+   - Counters for token throughput
+
 ## Customization
 
 You can customize the application by:
@@ -197,6 +238,7 @@ You can customize the application by:
 2. Modifying the frontend components for a different UI experience
 3. Extending the backend API with additional functionality
 4. Customizing the Grafana dashboards for different metrics
+5. Adjusting llama.cpp parameters for performance optimization
 
 ## Testing
 
@@ -213,6 +255,7 @@ go test -v
 - **Connection errors**: Verify Docker network settings and that Model Runner is running
 - **Streaming issues**: Check CORS settings in the backend code
 - **Metrics not showing**: Verify that Prometheus can reach the backend metrics endpoint
+- **llama.cpp metrics missing**: Confirm that your model is indeed a llama.cpp model
 
 ## License
 
