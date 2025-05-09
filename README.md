@@ -1,9 +1,10 @@
-# GenAI App Demo with Docker Model Runner
+# GenAI App Demo with Docker Model Runner and Integration with the Observability Stack
 
 <img width="679" alt="image" src="https://github.com/user-attachments/assets/9b3931c2-aab3-421e-a3ca-990117ee545b" />
 
 
 A modern, full-stack chat application demonstrating how to integrate React frontend with a Go backend and run local Large Language Models (LLMs) using Docker's Model Runner.
+This repo also integrates the GenAI app with the Observability stack that includes Prometheus, Grafana and Jaeger.
 
 ## Overview
 
