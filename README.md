@@ -1,4 +1,4 @@
-# GenAI App Demo with Docker Model Runner and Integration with the Observability Stack
+# A GenAI Chatbot Demo with Docker Model Runner and Observability Metrics
 
 <img width="679" alt="image" src="https://github.com/user-attachments/assets/9b3931c2-aab3-421e-a3ca-990117ee545b" />
 
