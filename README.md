@@ -84,8 +84,8 @@ docker model pull ai/llama3.2:1B-Q8_0
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/ajeetraina/genai-app-demo.git
-   cd genai-app-demo
+   git clone https://github.com/ajeetraina/genai-model-runner-metrics.git
+   cd genai-model-runner-metrics
    ```
 
 2. Start the application using Docker Compose:
