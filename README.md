@@ -69,7 +69,8 @@ This method uses host-side TCP support:
 
 ## Prerequisites
 
-- Docker and Docker Compose
+- Docker Desktop 4.41.0 or later
+- Docker Compose 2.35 or later
 - Git
 - Go 1.19 or higher (for local development)
 - Node.js and npm (for frontend development)
