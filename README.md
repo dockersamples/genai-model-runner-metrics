@@ -251,24 +251,7 @@ cd tests
 go test -v
 ```
 
-## Troubleshooting
 
-- **Model not loading**: Ensure you've pulled the model with `docker model pull`
-- **Connection errors**: Verify Docker network settings and that Model Runner is running
-- **Streaming issues**: Check CORS settings in the backend code
-- **Metrics not showing**: Verify that Prometheus can reach the backend metrics endpoint
-- **llama.cpp metrics missing**: Confirm that your model is indeed a llama.cpp model
 
-## License
 
-MIT
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
